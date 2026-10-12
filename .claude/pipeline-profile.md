@@ -104,3 +104,6 @@ push sur `main` → `.github/workflows/deploy.yml` (SSH, `git reset --hard origi
 ## Hors pipeline
 Production (`deploy.yml`) et réglages par laboratoire (`APP_MODULES`, `CSP_ENFORCE`, `NEXT_PUBLIC_API_URL`
 dans le `.env` du serveur). `feedback.txt` (idées produit en vrac) n'est pas un backlog validé.
+
+Dépôt public : `conventions.yml` est une **copie** de kawa-standards (un dépôt public ne peut pas appeler un
+workflow privé). Quand kawa-standards change ses conventions, recopier le fichier ici.
