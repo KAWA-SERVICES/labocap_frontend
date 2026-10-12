@@ -36,7 +36,7 @@ Nouveau domaine branché dans `src/lib/api/`, nouvel écran sous `src/app/(dashb
   `git branch -r` avant de recommencer un écran.
 
 ## Contrat d'API
-Source : le code de `../labsys_api` (branche `develop` sur `serviceskawa/backend_api_labocap`). `openapi.yaml`
+Source : le code de `../labsys_api` (branche `develop` sur `KAWA-SERVICES/backend_api_labocap`). `openapi.yaml`
 à la racine de l'API est figé depuis mai 2026 : ne pas s'y fier seul. Pour un domaine touché, lire le
 contrôleur et ses DTO, ou la spec générée par SpringDoc en local (`/v3/api-docs`, désactivée en prod :
 `application-prod.yml`). Enveloppe `{ success, message, data, timestamp }` déballée par l'intercepteur ; `428`
@@ -94,7 +94,7 @@ ni une règle CSP.
 Pas de phases pour l'instant (aucun `stories/` dans le dépôt).
 
 ## Ship (étape 7)
-Flux commun ; `develop` existe sur origin (`serviceskawa/labocap_frontend`). CI `.github/workflows/ci.yml` :
+Flux commun ; `develop` existe sur origin (`KAWA-SERVICES/labocap_frontend`). CI `.github/workflows/ci.yml` + conventions `kawa.yml` ; `ci.yml` :
 audit, lint, tests, build sur chaque PR vers `develop` ou `main`. Au 2026-10-11, `origin/develop` a 20 commits
 d'avance sur `main` : vérifier `git log origin/main..origin/develop` avant toute PR de release.
 Livrée = mergée sur `develop`, CI verte (pas d'environnement de dev déployé dans le dépôt). Déploiement :
