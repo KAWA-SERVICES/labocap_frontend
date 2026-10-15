@@ -64,6 +64,10 @@ export interface Invoice {
   contratName?: string;
   clientName?: string;
   clientAddress?: string;
+  /** IFU de l'acheteur, tel qu'il part à la DGI. Vide pour un patient. */
+  clientIfu?: string | null;
+  /** L'identité de facturation a été saisie à la main et ne sera plus réécrite. */
+  facturationFigee?: boolean;
   /** « Contact client » du reçu : téléphone(s) du patient lié, sinon vide. */
   clientContact?: string;
   /** Date saisie à la création. Distincte de createdAt : c'est elle qu'affiche Laravel. */
@@ -231,8 +235,22 @@ export const invoicesApi = {
    * facture, et sans lui la DGI recevrait un document annoncé non réglé.
    * Inutile sur un avoir — il contrepasse, il n'encaisse rien.
    */
-  normalize: (id: string, payment?: InvoicePayment) =>
-    apiClient.post<Invoice>(`/invoices/${id}/normalize`, payment ? { payment } : {}),
+  /**
+   * Normalise la facture auprès de la DGI.
+   *
+   * `destinataire` adresse la facture à quelqu'un d'autre que ce qu'elle porte
+   * — une clinique qui règle pour son patient. Il fige alors l'identité : une
+   * revalidation du bon d'examen ne la ramènera pas au patient.
+   */
+  normalize: (
+    id: string,
+    payment?: InvoicePayment,
+    destinataire?: { nom: string; adresse?: string; ifu?: string },
+  ) =>
+    apiClient.post<Invoice>(`/invoices/${id}/normalize`, {
+      ...(payment ? { payment } : {}),
+      ...(destinataire ? { destinataire } : {}),
+    }),
 
   /**
    * Télécharge le document de la facture normalisée.

@@ -82,7 +82,16 @@ const editOrderSchema = z.object({
   // « Affecter à » (docteur signataire) et « Option d'envoi des résultats ».
   attribuateDoctorId: z.string().optional(),
   option: z.string().optional(), // "0" = Appel, "1" = SMS
-});
+  // Qui paie : le patient par défaut, sinon un tiers saisi librement (cf. le
+  // formulaire d'ajout). Décocher remet la facturation au patient.
+  factureAUnTiers: z.boolean().optional(),
+  factureANom: z.string().optional(),
+  factureAAdresse: z.string().optional(),
+  factureAIfu: z.string().optional(),
+}).refine(
+  (d) => !d.factureAUnTiers || Boolean(d.factureANom?.trim()),
+  { path: ["factureANom"], message: "Le nom de l'établissement est requis" },
+);
 
 type EditOrderFormData = z.infer<typeof editOrderSchema>;
 
@@ -111,6 +120,7 @@ export default function TestOrderEditPage({ params }: EditPageProps) {
     resolver: zodResolver(editOrderSchema),
     defaultValues: {
       isUrgent: false,
+      factureAUnTiers: false,
     },
   });
 
@@ -124,6 +134,7 @@ export default function TestOrderEditPage({ params }: EditPageProps) {
 
   // Watch type d'examen pour les champs conditionnels Immuno.
   const selectedTypeOrderId = watch("typeOrderId");
+  const factureAUnTiers = watch("factureAUnTiers");
 
   // --- Query : demande existante
   const { data: order, isLoading: orderLoading } = useQuery({
@@ -150,6 +161,10 @@ export default function TestOrderEditPage({ params }: EditPageProps) {
       isUrgent: order.isUrgent,
       attribuateDoctorId: order.attribuateDoctorId ?? order.assignedToUserId ?? "",
       option: order.option == null ? "" : order.option ? "1" : "0",
+      factureAUnTiers: Boolean(order.factureANom),
+      factureANom: order.factureANom ?? "",
+      factureAAdresse: order.factureAAdresse ?? "",
+      factureAIfu: order.factureAIfu ?? "",
     });
     // Interne : amorce l'option affichée du select avec la référence enregistrée
     // (test_affiliate = code). Le champ montre donc la valeur courante, et
@@ -287,6 +302,15 @@ export default function TestOrderEditPage({ params }: EditPageProps) {
     if (data.doctorId) payload.doctorId = data.doctorId;
     if (data.hospitalId) payload.hospitalId = data.hospitalId;
     if (data.referenceHopital) payload.referenceHopital = data.referenceHopital;
+    // Toujours transmis : le serveur efface le tiers quand le nom est vide,
+    // c'est ce qui permet de revenir à une facturation au patient.
+    payload.factureANom = data.factureAUnTiers ? data.factureANom?.trim() : "";
+    payload.factureAAdresse = data.factureAUnTiers
+      ? data.factureAAdresse?.trim() || undefined
+      : undefined;
+    payload.factureAIfu = data.factureAUnTiers
+      ? data.factureAIfu?.trim() || undefined
+      : undefined;
     // « Affecter à » → docteur signataire (le backend aligne attribuateDoctorId
     // ET assignedToUserId sur cet utilisateur).
     if (data.attribuateDoctorId)
@@ -570,7 +594,7 @@ export default function TestOrderEditPage({ params }: EditPageProps) {
               {order?.archive && (
                 <button
                   type="button"
-                  onClick={() => openDocFile(order.archive!)}
+                  onClick={() => openDocFile({ fileId: order.archiveFileId, path: order.archive })}
                   className="mb-1 inline-flex w-fit items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
                 >
                   Pièce jointe actuelle — ouvrir
@@ -607,6 +631,66 @@ export default function TestOrderEditPage({ params }: EditPageProps) {
                 )}
               />
             </div>
+
+            {/* Qui sera facturé — mêmes règles qu'à l'ajout. */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Facturer à
+              </label>
+              <Controller
+                name="factureAUnTiers"
+                control={control}
+                render={({ field }) => (
+                  <FormToggle
+                    id="factureAUnTiers-edit"
+                    label={field.value ? "Un établissement" : "Le patient"}
+                    checked={Boolean(field.value)}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            </div>
+
+            {factureAUnTiers && (
+              <div className="grid gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 md:col-span-2 md:grid-cols-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Nom de l&apos;établissement
+                  </label>
+                  <input
+                    type="text"
+                    {...register("factureANom")}
+                    placeholder="Clinique, société, assurance…"
+                    className={inputClass}
+                  />
+                  {errors.factureANom && (
+                    <p className="text-xs text-red-600">
+                      {errors.factureANom.message}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Adresse
+                  </label>
+                  <input
+                    type="text"
+                    {...register("factureAAdresse")}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    IFU
+                  </label>
+                  <input
+                    type="text"
+                    {...register("factureAIfu")}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Affecter à (docteur signataire) — calque Laravel edit.blade */}
             <div className="flex flex-col gap-1">

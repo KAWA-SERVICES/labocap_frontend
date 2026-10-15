@@ -251,7 +251,7 @@ export default function ExpensesPage() {
       header: "Piece jointe",
       id: "attachment",
       cell: ({ row }) => {
-        const { invoiceNumber, receipt } = row.original;
+        const { invoiceNumber, receipt, fileId } = row.original;
         if (!invoiceNumber && !receipt) return <span className="text-gray-400">—</span>;
         return (
           <div className="flex flex-col gap-1">
@@ -261,7 +261,7 @@ export default function ExpensesPage() {
             {receipt && (
               <button
                 type="button"
-                onClick={() => downloadDocFile(receipt)}
+                onClick={() => downloadDocFile({ fileId, path: receipt })}
                 className="inline-flex w-fit items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
               >
                 <Paperclip className="h-3.5 w-3.5" />

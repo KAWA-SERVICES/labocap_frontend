@@ -26,6 +26,8 @@ export interface Employee {
   placeOfBirth?: string;
   cnssNumber?: string;
   photoUrl?: string;
+  /** Identifiant de la photo pour `GET /files/{id}` (cf. src/lib/fichiers.ts). */
+  fileId?: string;
   gender?: string;
   nationality?: string;
   city?: string;

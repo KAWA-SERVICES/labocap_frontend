@@ -27,11 +27,11 @@ import { PERMISSIONS } from "@/lib/constants/permissions";
 import { formatCFA, formatDate, nomComplet } from "@/lib/utils";
 import {
   consultationsApi,
-  getConsultationFileUrl,
   type Consultation,
   type ConsultationRequest,
   type ConsultationFile,
 } from "@/lib/api/consultations";
+import { openDocFile } from "@/lib/api/docs";
 import type { PageResponse, ApiError } from "@/types/api";
 import apiClient from "@/lib/api/client";
 import { INPUT_CLASS as inputClass } from "@/lib/ui/inputClass";
@@ -232,14 +232,13 @@ function ConsultationForm({
                   <span className="truncate text-gray-700">
                     {f.typeFileLabel || f.path.split("/").pop()}
                   </span>
-                  <a
-                    href={getConsultationFileUrl(f.path)}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => openDocFile({ fileId: f.fileId, path: f.path })}
                     className="ml-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
                   >
                     Voir
-                  </a>
+                  </button>
                 </li>
               ))}
             </ul>

@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { ImageOff } from "lucide-react";
+import type { AxiosError } from "axios";
 import apiClient from "@/lib/api/client";
+import { urlFichier, type RefFichier } from "@/lib/fichiers";
 
 /**
  * Vignette d'image récupérée de façon authentifiée (cookies via apiClient) et
@@ -12,35 +14,40 @@ import apiClient from "@/lib/api/client";
  * Réplique la galerie « Pièces jointes » de la vue Laravel reports/show.
  */
 export function AuthThumbnail({
-  filename,
+  fichier,
   alt,
   onClick,
   className,
 }: {
-  filename: string;
+  fichier: RefFichier;
   alt?: string;
   onClick?: () => void;
   className?: string;
 }) {
   const [src, setSrc] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  // Vignette de remplacement : 403 (entité non lisible) ou 404 (fichier
+  // rattaché à rien) — l'image manquante ne doit pas casser la galerie.
+  const [failed, setFailed] = useState<string | null>(null);
+  const { fileId, path } = fichier;
 
   useEffect(() => {
     let revoked = false;
     let objectUrl: string | null = null;
     apiClient
-      .get(`/files/${filename}`, { responseType: "blob" })
+      .get(urlFichier({ fileId, path }), { responseType: "blob" })
       .then((res) => {
         if (revoked) return;
         objectUrl = URL.createObjectURL(res.data as Blob);
         setSrc(objectUrl);
       })
-      .catch(() => setFailed(true));
+      .catch((err: AxiosError) =>
+        setFailed(err.response?.status === 403 ? "Non autorisé" : "Introuvable"),
+      );
     return () => {
       revoked = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [filename]);
+  }, [fileId, path]);
 
   if (failed) {
     return (
@@ -49,7 +56,7 @@ export function AuthThumbnail({
         title={alt}
       >
         <ImageOff className="h-4 w-4" />
-        <span className="text-[9px]">Introuvable</span>
+        <span className="text-[9px]">{failed}</span>
       </div>
     );
   }

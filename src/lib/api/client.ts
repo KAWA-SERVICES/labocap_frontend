@@ -11,14 +11,6 @@ const API_BASE_URL =
  */
 export const API_ORIGIN = API_BASE_URL.replace(/\/api\/v1\/?$/, "");
 
-/**
- * URL absolue d'un fichier stocké, servi par le backend (`/api/v1/files/...`).
- * Ouvrable directement dans un onglet (l'auth par cookie est envoyée car
- * front et back sont same-site). Équivalent de `Storage::url()` de Laravel.
- */
-export const fileUrl = (path: string) =>
-  `${API_ORIGIN}/api/v1/files/${path.replace(/^\/+/, "")}`;
-
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,

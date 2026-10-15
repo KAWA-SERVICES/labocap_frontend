@@ -448,7 +448,7 @@ export default function ExpenseDetailPage({
               {expense.receipt ? (
                 <button
                   type="button"
-                  onClick={() => downloadDocFile(expense.receipt!)}
+                  onClick={() => downloadDocFile({ fileId: expense.fileId, path: expense.receipt })}
                   className="mt-1 inline-flex w-fit items-center gap-1 text-sm font-medium text-blue-600 hover:underline"
                 >
                   <Paperclip className="h-4 w-4" />

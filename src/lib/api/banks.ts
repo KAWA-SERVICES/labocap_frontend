@@ -37,6 +37,8 @@ export interface BankDeposit {
   date: string;
   description?: string;
   attachement?: string;
+  /** Identifiant de la pièce jointe pour `GET /files/{id}` (cf. src/lib/fichiers.ts). */
+  fileId?: string;
   branchId?: string;
   createdAt?: string;
 }

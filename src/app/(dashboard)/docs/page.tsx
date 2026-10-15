@@ -244,7 +244,7 @@ export default function DocsPage() {
           {
             label: "Télécharger",
             icon: <Download className="h-4 w-4" />,
-            onClick: () => downloadDocFile(doc.attachment),
+            onClick: () => downloadDocFile({ fileId: doc.fileId, path: doc.attachment }),
           },
           {
             label: "Historique des versions",
@@ -531,7 +531,7 @@ export default function DocsPage() {
                       <td className="py-2">
                         <button
                           type="button"
-                          onClick={() => downloadDocFile(v.attachment)}
+                          onClick={() => downloadDocFile({ fileId: v.fileId, path: v.attachment })}
                           className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
                         >
                           <Download className="h-3.5 w-3.5" />

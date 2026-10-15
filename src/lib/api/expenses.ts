@@ -32,6 +32,8 @@ export interface Expense {
   invoiceNumber?: string;
   payment?: PaymentMethod;
   receipt?: string;
+  /** Identifiant du reçu pour `GET /files/{id}` (cf. src/lib/fichiers.ts). */
+  fileId?: string;
   details?: ExpenseDetail[];
   branchId?: string;
   createdAt?: string;

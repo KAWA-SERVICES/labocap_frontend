@@ -22,7 +22,7 @@ import {
   type RefundRequest,
 } from "@/lib/api/refunds";
 import { invoicesApi, type Invoice } from "@/lib/api/invoices";
-import { API_ORIGIN } from "@/lib/api/client";
+import { openDocFile } from "@/lib/api/docs";
 import { INPUT_CLASS as inputClass } from "@/lib/ui/inputClass";
 
 
@@ -183,14 +183,13 @@ export function EditRefundModal({
 
             <FormField label="Pièce jointe (PDF)">
               {refund.attachment && (
-                <a
-                  href={`${API_ORIGIN}/api/v1/files/${refund.attachment}`}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => openDocFile({ fileId: refund.fileId, path: refund.attachment })}
                   className="mb-1 inline-block text-sm text-blue-600 hover:underline"
                 >
                   Pièce jointe actuelle — ouvrir
-                </a>
+                </button>
               )}
               <input
                 type="file"

@@ -98,7 +98,7 @@ export default function SharedDocsPage() {
             </Link>
             <button
               type="button"
-              onClick={() => downloadDocFile(doc.attachment)}
+              onClick={() => downloadDocFile({ fileId: doc.fileId, path: doc.attachment })}
               className="inline-flex items-center justify-center rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-green-600 transition-colors"
               title="Télécharger"
             >

@@ -18,8 +18,16 @@ services:
       # Content Security Policy (cf. docs/csp.md). Variable lue AU RUNTIME par
       # le proxy — contrairement aux NEXT_PUBLIC_*, elle ne nécessite pas de
       # reconstruire l'image : un `docker compose up -d` suffit à basculer.
-      #   absente / false → Content-Security-Policy-Report-Only (observation)
-      #   true            → Content-Security-Policy (blocage effectif)
-      CSP_ENFORCE: ${CSP_ENFORCE:-false}
+      #   false → Content-Security-Policy-Report-Only (observation)
+      #   true  → Content-Security-Policy (blocage effectif, défaut)
+      # Procédure avant tout changement de politique (cf. src/lib/security/csp.ts) :
+      # passer 48 h à `false`, lire les rapports reçus sur /api/csp-report (logs
+      # du conteneur), corriger chaque violation dans le code — jamais en
+      # élargissant la politique —, puis repasser à `true`.
+      CSP_ENFORCE: ${CSP_ENFORCE:-true}
+      # Modules optionnels (cf. docs/modules.md), lus AU RUNTIME comme
+      # CSP_ENFORCE : liste séparée par des virgules, ex. "biology,agenda".
+      # Absente / vide → aucun module, l'application reste telle quelle.
+      APP_MODULES: ${APP_MODULES:-}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"

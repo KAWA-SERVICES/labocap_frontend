@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
 
@@ -31,9 +31,23 @@ jobs:
         run: npm ci
 
 
+      # Refuser toute dépendance de production avec une vulnérabilité haute ou
+      # critique connue. `--omit=dev` : l'image standalone n'embarque pas les
+      # outils de build/lint, et la chaîne eslint-config-next → fast-glob →
+      # micromatch → braces porte un DoS (GHSA-vfj7-8cjw-p6xm) sans aucune
+      # version corrigée à ce jour — bloquer dessus empêcherait tout déploiement.
+      - name: Audit dependencies
+        run: npm audit --audit-level=high --omit=dev
+
+
       # Vérifier le code
       - name: Run lint
         run: npm run lint
+
+
+      # Tests unitaires
+      - name: Run tests
+        run: npm test
 
 
       # Construire Next.js

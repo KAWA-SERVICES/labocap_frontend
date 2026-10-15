@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { User, LogOut, ChevronDown } from "lucide-react";
 
@@ -37,7 +37,7 @@ export function Topbar() {
   const clearBranch = useBranchStore((state) => state.clearBranch);
   const branch = useBranchStore((state) => state.branch);
   const { appName } = useBranding();
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -55,7 +55,12 @@ export function Topbar() {
     } finally {
       clearAuth();
       clearBranch();
-      router.push("/login");
+      // Vide le cache React Query (données du compte qui part) puis recharge
+      // la page entière : un `router.push` garderait en mémoire stores, cache
+      // et composants jusqu'à la connexion suivante.
+      queryClient.clear();
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- le rechargement complet est voulu
+      window.location.assign("/login");
     }
   };
 

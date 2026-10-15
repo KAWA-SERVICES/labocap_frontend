@@ -21,7 +21,7 @@ import {
   documentationCategoriesApi,
   type Doc,
   type DocVersion,
-  getDocFileUrl,
+  openDocFile,
   downloadDocFile,
   formatFileSize,
 } from "@/lib/api/docs";
@@ -131,18 +131,17 @@ export default function DocDetailPage({
 
               <div className="flex flex-col gap-2 flex-shrink-0">
                 {/* Visualiser / Télécharger */}
-                <a
-                  href={getDocFileUrl(doc.attachment)}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => openDocFile({ fileId: doc.fileId, path: doc.attachment })}
                   className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
                   <Eye className="h-4 w-4" />
                   Visualiser
-                </a>
+                </button>
                 <button
                   type="button"
-                  onClick={() => downloadDocFile(doc.attachment, doc.title)}
+                  onClick={() => downloadDocFile({ fileId: doc.fileId, path: doc.attachment }, doc.title)}
                   className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                 >
                   <Download className="h-4 w-4" />
@@ -212,7 +211,7 @@ export default function DocDetailPage({
                             ) : (
                               <button
                                 type="button"
-                                onClick={() => downloadDocFile(v.attachment)}
+                                onClick={() => downloadDocFile({ fileId: v.fileId, path: v.attachment })}
                                 className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
                               >
                                 <Download className="h-3.5 w-3.5" />

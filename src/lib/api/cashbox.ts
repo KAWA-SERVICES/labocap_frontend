@@ -171,6 +171,8 @@ export interface CashboxVoucherResponseDto {
   supplierName: string | null;
   expenseCategoryId: string | null;
   ticketFile: string | null;
+  /** Identifiant de la pièce jointe pour `GET /files/{id}` (cf. src/lib/fichiers.ts). */
+  fileId?: string;
   details: CashboxVoucherDetail[];
   branchId: string;
   createdAt: string;

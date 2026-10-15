@@ -32,6 +32,8 @@ export const PERMISSIONS = {
   // Distincte de la validation, qui engage un diagnostic.
   DELIVER_REPORTS: "deliver-reports",
   SIGN_REPORTS: "sign-reports",
+  /** Versions antérieures d'un compte rendu signé : lecture seule, droit distinct. */
+  VIEW_REPORT_HISTORY: "view-report-history",
 
   // Macroscopy
   VIEW_MACRO: "view-macro",
@@ -143,6 +145,10 @@ export const PERMISSIONS = {
   MANAGE_TIMEOFF: "view-employee-timeoffs",
 
   // Dashboard (rôle-based views)
+  /** Toutes les routes `/dashboard/**` : sans elle, l'API répond 403. */
+  VIEW_DASHBOARD: "view-dashboard",
+  /** Chiffre d'affaires et état des factures (`/dashboard/revenue`, `/dashboard/invoice-status`). */
+  VIEW_DASHBOARD_FINANCE: "view-dashboard-finance",
   VIEW_ADMIN_DASHBOARD: "view-admin-dashboard",
   VIEW_SECRETARIAT_DASHBOARD: "view-secretariat-dashboard",
   VIEW_PATHOLOGIST_DASHBOARD: "view-pathologist-dashboard",
@@ -182,6 +188,8 @@ export const PERMISSIONS = {
   EDIT_ROLES: "edit-roles",
   DELETE_ROLES: "delete-roles",
   MANAGE_PERMISSIONS: "manage-permissions",
+  // Journal des consultations : qui a lu, téléchargé ou imprimé quoi.
+  VIEW_AUDIT: "view-audit",
 
   // Consultations
   VIEW_CONSULTATIONS: "view-consultations",

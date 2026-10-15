@@ -31,14 +31,10 @@ export interface ConsultationFile {
   id: string;
   typeFileLabel?: string;
   path: string;
+  /** Identifiant du fichier pour `GET /files/{id}` (cf. src/lib/fichiers.ts). */
+  fileId?: string;
   comment?: string;
   createdAt: string;
-}
-
-/** URL publique d'un fichier de consultation (servi par /files/{path}). */
-export function getConsultationFileUrl(path: string): string {
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1").replace(/\/$/, "");
-  return `${base}/files/${path}`;
 }
 
 export const consultationsApi = {

@@ -25,6 +25,8 @@ export interface RefundRequest {
   montant: number;
   note?: string;
   attachment?: string;
+  /** Identifiant du fichier pour `GET /files/{id}` (cf. src/lib/fichiers.ts). */
+  fileId?: string;
   code?: string;
   status: string;
   logs?: RefundRequestLog[];

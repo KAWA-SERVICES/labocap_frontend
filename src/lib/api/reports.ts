@@ -82,6 +82,32 @@ export interface ReportRequest {
   receiverName?: string;
   status?: ReportStatus;
   tagIds?: string[];
+  /**
+   * Pourquoi on retouche un compte rendu déjà sorti. Exigé par le serveur
+   * (20 caractères au moins) quand le compte rendu est livré ; facultatif sinon.
+   */
+  reason?: string;
+}
+
+/** Entrée de la liste des versions antérieures d'un compte rendu. */
+export interface ReportVersionResume {
+  version: number;
+  savedAt: string;
+  /** Auteur de la modification qui a provoqué la prise de version. */
+  savedBy: string;
+  status: ReportStatus;
+}
+
+/** Une version antérieure, textes compris (état du compte rendu avant d'être écrasé). */
+export interface ReportVersion extends ReportVersionResume {
+  title?: string;
+  signataires?: string;
+  content?: string;
+  contentMicro?: string;
+  comment?: string;
+  commentSup?: string;
+  descriptionSupplementaire?: string;
+  descriptionSupplementaireMicro?: string;
 }
 
 export interface ReportSuivi {
@@ -343,6 +369,14 @@ export const reportsApi = {
     apiClient.get<ModificationApresSignature[]>(
       `/reports/${id}/modifications-apres-signature`,
     ),
+
+  /** Versions antérieures d'un compte rendu, de la plus ancienne à la plus récente. */
+  listVersions: (id: string) =>
+    apiClient.get<ReportVersionResume[]>(`/reports/${id}/versions`),
+
+  /** Une version antérieure, textes compris. */
+  findVersion: (id: string, numero: number) =>
+    apiClient.get<ReportVersion>(`/reports/${id}/versions/${numero}`),
 
   /**
    * Liste paginée des comptes-rendu pour la page "Tous les comptes rendu".

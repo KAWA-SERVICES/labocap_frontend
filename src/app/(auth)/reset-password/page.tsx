@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,19 +10,14 @@ import { authApi } from "@/lib/api/auth";
 import { AuthCard } from "@/components/ui/AuthCard";
 import { Button } from "@/components/ui/Button";
 import { INPUT_CLASS as inputClass } from "@/lib/ui/inputClass";
+import { motDePasseSchema } from "@/lib/mot-de-passe";
+import { ForceMotDePasse } from "@/components/ui/ForceMotDePasse";
 
 const resetPasswordSchema = z
   .object({
-    password: z
-      .string()
-      .min(8, "Le mot de passe doit contenir au moins 8 caractères")
-      .regex(/[A-Z]/, "Le mot de passe doit contenir au moins une majuscule")
-      .regex(/[a-z]/, "Le mot de passe doit contenir au moins une minuscule")
-      .regex(/[0-9]/, "Le mot de passe doit contenir au moins un chiffre")
-      .regex(
-        /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/,
-        "Le mot de passe doit contenir au moins un symbole"
-      ),
+    // Même règle que l'API (12 caractères) : les anciennes exigences de
+    // majuscule/chiffre/symbole refusaient des mots de passe que l'API accepte.
+    password: motDePasseSchema,
     passwordConfirmation: z
       .string()
       .min(1, "La confirmation du mot de passe est requise"),
@@ -47,10 +42,12 @@ function ResetPasswordForm() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
   });
+  const password = useWatch({ control, name: "password" }) ?? "";
 
   const onSubmit = async (data: ResetPasswordFormData) => {
     setIsLoading(true);
@@ -174,6 +171,7 @@ function ResetPasswordForm() {
               {errors.password.message}
             </p>
           )}
+          <ForceMotDePasse valeur={password} />
         </div>
 
         {/* Confirmer le mot de passe */}
@@ -244,16 +242,6 @@ function ResetPasswordForm() {
               {errors.passwordConfirmation.message}
             </p>
           )}
-        </div>
-
-        {/* Conseil */}
-        <div className="mb-6 p-3 bg-blue-50 rounded-md border border-blue-100">
-          <p className="text-xs text-blue-700">
-            <strong>Conseil :</strong> Le mot de passe devrait contenir au
-            moins douze caractères. Pour le rendre plus sûr, utilisez des
-            lettres en majuscules et minuscules, des nombres, et des
-            symboles tels que ! &quot; ? $ % ^ &amp; ).
-          </p>
         </div>
 
         {/* Bouton submit */}

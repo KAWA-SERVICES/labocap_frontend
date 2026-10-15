@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { sanitize } from "@/lib/sanitize";
 import {
   Bold,
   Italic,
@@ -182,11 +183,13 @@ export function RichTextEditor({
   const [fontSize, setFontSizeState] = useState<string>("");
 
   // Synchronise le DOM avec `value` uniquement quand le contenu externe diffère
-  // (évite les sauts de curseur pendant la frappe).
+  // (évite les sauts de curseur pendant la frappe). `value` vient de l'API :
+  // nettoyé avant injection.
   useEffect(() => {
     const el = editorRef.current;
-    if (el && el.innerHTML !== (value ?? "")) {
-      el.innerHTML = value ?? "";
+    const propre = sanitize(value ?? "");
+    if (el && el.innerHTML !== propre) {
+      el.innerHTML = propre;
     }
   }, [value]);
 

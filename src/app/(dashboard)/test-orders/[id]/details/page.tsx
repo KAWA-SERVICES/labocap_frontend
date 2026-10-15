@@ -615,7 +615,7 @@ export default function TestOrderDetailsPage({ params }: Props) {
               {order.archive ? (
                 <button
                   type="button"
-                  onClick={() => openDocFile(order.archive!)}
+                  onClick={() => openDocFile({ fileId: order.archiveFileId, path: order.archive })}
                   className="inline-flex items-center gap-1 font-medium text-blue-600 hover:underline"
                 >
                   <Download className="h-3.5 w-3.5" />
@@ -689,7 +689,7 @@ export default function TestOrderDetailsPage({ params }: Props) {
                   variant="view"
                   title="Voir"
                   aria-label="Voir"
-                  onClick={() => openDocFile(img.filename)}
+                  onClick={() => openDocFile({ fileId: img.fileId, path: img.filename })}
                   icon={<Eye className="h-4 w-4" />}
                 />
                 <IconButton

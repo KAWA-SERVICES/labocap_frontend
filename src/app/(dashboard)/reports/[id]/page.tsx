@@ -27,7 +27,9 @@ import {
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { formatDate, nomComplet } from "@/lib/utils";
-import { reportsApi, type ReportDetail } from "@/lib/api/reports";
+import { reportsApi, type ReportDetail, type ReportStatus } from "@/lib/api/reports";
+import { motifDeModification } from "@/lib/report-version";
+import { VersionsCompteRendu } from "./VersionsCompteRendu";
 import { reportTemplatesApi } from "@/lib/api/reportTemplates";
 import { titleReportsApi } from "@/lib/api/reportSettings";
 import { usersApi } from "@/lib/api/users";
@@ -43,7 +45,9 @@ import { Button } from "@/components/ui/Button";
 // Zod schema
 // ---------------------------------------------------------------------------
 
-const reportEditSchema = z.object({
+// Dépend de l'état du compte rendu : le motif n'est exigé que pour un compte
+// rendu livré (voir `motifDeModification`).
+const reportEditSchema = (status: ReportStatus | undefined) => z.object({
   titleId: z.string().optional(),
   content: z.string().optional(),
   contentMicro: z.string().optional(),
@@ -57,9 +61,10 @@ const reportEditSchema = z.object({
   signatory3Id: z.string().optional(),
   reviewedById: z.string().optional(),
   tagIds: z.array(z.string()).optional(),
+  reason: motifDeModification(status),
 });
 
-type ReportEditFormValues = z.infer<typeof reportEditSchema>;
+type ReportEditFormValues = z.infer<ReturnType<typeof reportEditSchema>>;
 
 // ---------------------------------------------------------------------------
 // Helpers de style (réplique des « card » Laravel avec le design du projet)
@@ -207,8 +212,11 @@ export default function ReportDetailPage({
     reset,
     control,
     setValue,
+    formState: { errors },
   } = useForm<ReportEditFormValues>({
-    resolver: zodResolver(reportEditSchema),
+    // Le schéma suit l'état du compte rendu chargé : react-hook-form relit le
+    // résolveur à chaque rendu.
+    resolver: zodResolver(reportEditSchema(report?.status)),
     defaultValues: {
       titleId: "",
       content: "",
@@ -223,6 +231,7 @@ export default function ReportDetailPage({
       signatory3Id: "",
       reviewedById: "",
       tagIds: [],
+      reason: "",
     },
   });
 
@@ -243,6 +252,7 @@ export default function ReportDetailPage({
         signatory3Id: report.signatory3Id ?? "",
         reviewedById: report.reviewedById ?? "",
         tagIds: report.tagIds ?? [],
+        reason: "",
       });
     }
   }, [report, reset]);
@@ -298,6 +308,7 @@ export default function ReportDetailPage({
         reviewedById: data.reviewedById || undefined,
         status: statusValue === "1" ? "VALIDATED" : "DRAFT",
         tagIds: data.tagIds ?? [],
+        reason: data.reason?.trim() || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["report", id] });
@@ -307,6 +318,8 @@ export default function ReportDetailPage({
       queryClient.invalidateQueries({
         queryKey: ["report-modifications-apres-signature", id],
       });
+      // … et une version antérieure, que la section « Versions » doit lister.
+      queryClient.invalidateQueries({ queryKey: ["report-versions", id] });
       toast.success(
         statusValue === "1" ? "Compte rendu validé" : "Compte rendu mis à jour"
       );
@@ -690,9 +703,9 @@ export default function ReportDetailPage({
                 {(galleryImages ?? []).map((img) => (
                   <AuthThumbnail
                     key={img.index}
-                    filename={img.filename}
+                    fichier={{ fileId: img.fileId, path: img.filename }}
                     alt={`Image ${img.index + 1}`}
-                    onClick={() => openDocFile(img.filename)}
+                    onClick={() => openDocFile({ fileId: img.fileId, path: img.filename })}
                   />
                 ))}
               </div>
@@ -793,6 +806,30 @@ export default function ReportDetailPage({
                 </p>
               )}
             </div>
+
+            {/*
+              Motif de la modification : exigé par le serveur (20 caractères)
+              pour un compte rendu livré, journalisé et transmis aux
+              administrateurs. Absent du formulaire sinon.
+            */}
+            {report.status === "DELIVERED" && canEdit && (
+              <div className="mt-4">
+                <label className={labelClass} htmlFor="report-reason">
+                  Motif de la modification <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  id="report-reason"
+                  {...register("reason")}
+                  rows={3}
+                  placeholder="Pourquoi ce compte rendu livré est-il modifié ? (20 caractères minimum)"
+                  aria-invalid={!!errors.reason}
+                  className={`mt-1 ${textareaClass}`}
+                />
+                {errors.reason && (
+                  <p className="mt-1 text-xs text-red-600">{errors.reason.message}</p>
+                )}
+              </div>
+            )}
 
             {/* Mettre à jour (Laravel : bouton unique qui enregistre + applique le statut) */}
             <PermissionGate permission={PERMISSIONS.EDIT_REPORTS}>
@@ -922,6 +959,13 @@ export default function ReportDetailPage({
           </Button>
         </div>
       </div>
+
+      {/* Versions antérieures : réservées au droit de consulter l'historique. */}
+      {can(PERMISSIONS.VIEW_REPORT_HISTORY) && (
+        <Card title="Versions">
+          <VersionsCompteRendu reportId={id} />
+        </Card>
+      )}
 
       {/* ============================ HISTORIQUES (pleine largeur) ============================ */}
       <Card title="Historiques">

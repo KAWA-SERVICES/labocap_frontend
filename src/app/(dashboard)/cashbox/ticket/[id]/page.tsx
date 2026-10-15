@@ -24,7 +24,7 @@ import {
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { cashboxApi, type CashboxVoucherDetail } from "@/lib/api/cashbox";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
-import { API_ORIGIN } from "@/lib/api/client";
+import { openDocFile } from "@/lib/api/docs";
 import { expenseCategoriesApi } from "@/lib/api/expenses";
 import { suppliersApi } from "@/lib/api/suppliers";
 import type { ApiError } from "@/types/api";
@@ -292,14 +292,13 @@ export default function CashboxTicketEditPage({ params }: PageProps) {
                 {/* Pièce jointe (optionnelle) — calque details.blade (dropify). */}
                 <FormField label="Pièce jointe">
                   {voucher.ticketFile && (
-                    <a
-                      href={`${API_ORIGIN}/api/v1/files/${voucher.ticketFile}`}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => openDocFile({ fileId: voucher.fileId, path: voucher.ticketFile })}
                       className="mb-1 inline-block text-sm text-blue-600 hover:underline"
                     >
                       Pièce jointe actuelle — ouvrir
-                    </a>
+                    </button>
                   )}
                   <input
                     type="file"

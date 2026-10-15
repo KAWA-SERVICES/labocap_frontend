@@ -78,7 +78,18 @@ const createOrderSchema = z.object({
   prelevementDate: z.string().min(1, "La date de prélèvement est requise"),
   isUrgent: z.boolean(),
   option: z.boolean().optional(),
-});
+  // Qui paie. Par défaut le patient ; sinon une clinique, un établissement, un
+  // employeur — n'importe quel tiers. Les trois champs sont libres : l'entité
+  // qui règle n'est pas toujours l'hôpital prescripteur, et n'est pas toujours
+  // en base.
+  factureAUnTiers: z.boolean().optional(),
+  factureANom: z.string().optional(),
+  factureAAdresse: z.string().optional(),
+  factureAIfu: z.string().optional(),
+}).refine(
+  (d) => !d.factureAUnTiers || Boolean(d.factureANom?.trim()),
+  { path: ["factureANom"], message: "Le nom de l'établissement est requis" },
+);
 
 type CreateOrderFormData = z.infer<typeof createOrderSchema>;
 
@@ -160,6 +171,7 @@ export default function TestOrderCreatePage() {
     resolver: zodResolver(createOrderSchema),
     defaultValues: {
       isUrgent: false,
+      factureAUnTiers: false,
     },
   });
 
@@ -179,6 +191,7 @@ export default function TestOrderCreatePage() {
 
   // Watch type d'examen pour les champs conditionnels Immuno
   const selectedTypeOrderId = watch("typeOrderId");
+  const factureAUnTiers = watch("factureAUnTiers");
 
   // --- Queries
   const { data: cashboxStatus } = useQuery<CashboxStatus>({
@@ -322,6 +335,11 @@ export default function TestOrderCreatePage() {
     };
 
     if (data.referenceHopital) payload.referenceHopital = data.referenceHopital;
+    if (data.factureAUnTiers) {
+      payload.factureANom = data.factureANom?.trim();
+      payload.factureAAdresse = data.factureAAdresse?.trim() || undefined;
+      payload.factureAIfu = data.factureAIfu?.trim() || undefined;
+    }
     if (data.option !== undefined) payload.option = data.option;
     // Examen de référence → colonne test_affiliate côté backend. Externe : texte
     // libre. Interne : code de la demande référencée (comme Laravel).
@@ -664,6 +682,68 @@ export default function TestOrderCreatePage() {
                 )}
               />
             </div>
+
+            {/* 9. Qui sera facturé. Le patient par défaut ; sinon un tiers dont
+                on saisit librement l'identité, qui deviendra le destinataire de
+                la facture normalisée. */}
+            <div className="flex flex-col gap-2 md:col-start-1">
+              <label className="text-sm font-medium text-gray-700">
+                Facturer à
+              </label>
+              <Controller
+                name="factureAUnTiers"
+                control={control}
+                render={({ field }) => (
+                  <FormToggle
+                    id="factureAUnTiers-create"
+                    label={field.value ? "Un établissement" : "Le patient"}
+                    checked={Boolean(field.value)}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            </div>
+
+            {factureAUnTiers && (
+              <div className="grid gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 md:col-span-2 md:grid-cols-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Nom de l&apos;établissement
+                  </label>
+                  <input
+                    type="text"
+                    {...register("factureANom")}
+                    placeholder="Clinique, société, assurance…"
+                    className={inputClass}
+                  />
+                  {errors.factureANom && (
+                    <p className="text-xs text-red-600">
+                      {errors.factureANom.message}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Adresse
+                  </label>
+                  <input
+                    type="text"
+                    {...register("factureAAdresse")}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    IFU
+                  </label>
+                  <input
+                    type="text"
+                    {...register("factureAIfu")}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Boutons */}

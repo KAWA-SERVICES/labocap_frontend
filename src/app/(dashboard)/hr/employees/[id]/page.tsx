@@ -42,7 +42,7 @@ import {
   type TimeoffStatus,
 } from "@/lib/api/hr";
 import { usersApi, type User } from "@/lib/api/users";
-import { fileUrl } from "@/lib/api/client";
+import { urlFichier } from "@/lib/fichiers";
 import { useUIStore } from "@/stores/ui.store";
 import type { ApiError } from "@/types/api";
 import { INPUT_CLASS as inputClass } from "@/lib/ui/inputClass";
@@ -163,6 +163,7 @@ export default function EmployeeDetailPage({
 
   const [editEmpOpen, setEditEmpOpen] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | undefined>(undefined);
+  const [photoIllisible, setPhotoIllisible] = useState(false);
   const empForm = useForm<EmployeeForm>({ resolver: zodResolver(employeeSchema) });
 
   const { data: usersData } = useQuery({
@@ -605,11 +606,13 @@ export default function EmployeeDetailPage({
       <div className="overflow-hidden rounded bg-blue-600 p-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-5">
-            {employee?.photoUrl ? (
+            {employee?.photoUrl && !photoIllisible ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={fileUrl(employee.photoUrl)}
+                src={urlFichier({ fileId: employee.fileId, path: employee.photoUrl })}
                 alt=""
+                // 403 (dossier non lisible) ou 404 : on retombe sur les initiales.
+                onError={() => setPhotoIllisible(true)}
                 className="h-24 w-24 rounded-full border-4 border-white/30 object-cover"
               />
             ) : (

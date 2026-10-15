@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useWatch, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -30,6 +30,8 @@ import { usersApi, User, UserRequest } from "@/lib/api/users";
 import { SELECT_CONTROL_MIN_HEIGHT } from "@/components/ui/selectStyles";
 import { INPUT_CLASS as inputClass } from "@/lib/ui/inputClass";
 import { nomComplet } from "@/lib/utils";
+import { MOT_DE_PASSE_MIN } from "@/lib/mot-de-passe";
+import { ForceMotDePasse } from "@/components/ui/ForceMotDePasse";
 
 // ---------------------------------------------------------------------------
 // Zod — calque exact du formulaire Laravel users/create & users/edit :
@@ -52,12 +54,11 @@ const userSchema = z.object({
 });
 
 /**
- * Schéma de création : mot de passe obligatoire, au moins 8 caractères et sans
+ * Schéma de création : mot de passe obligatoire, au moins 12 caractères et sans
  * espace. On passe par `superRefine` plutôt que `extend` pour que le type
  * inféré reste celui de `userSchema` — les deux formulaires partagent le même
  * composant, un type divergent le casserait.
  */
-const MOT_DE_PASSE_MIN = 8;
 const userCreateSchema = userSchema.superRefine((val, ctx) => {
   const mdp = val.password ?? "";
   if (mdp.length < MOT_DE_PASSE_MIN) {
@@ -445,6 +446,7 @@ function UserForm({ form, roleOptions, onSignature, withPassword = false }: User
     control,
     formState: { errors },
   } = form;
+  const password = useWatch({ control, name: "password" }) ?? "";
 
   function handleSignatureFile(file?: File) {
     if (!file) {
@@ -482,9 +484,10 @@ function UserForm({ form, roleOptions, onSignature, withPassword = false }: User
             type="password"
             autoComplete="new-password"
             {...register("password")}
-            placeholder="Au moins 8 caractères, sans espace"
+            placeholder={`Au moins ${MOT_DE_PASSE_MIN} caractères, sans espace`}
             className={inputClass}
           />
+          <ForceMotDePasse valeur={password} />
         </FormField>
       )}
 

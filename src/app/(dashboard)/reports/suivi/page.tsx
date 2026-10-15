@@ -22,6 +22,7 @@ import {
 import { typeOrdersApi, type TypeOrder } from "@/lib/api/examens";
 import type { ApiError, PageResponse } from "@/types/api";
 import { cn } from "@/lib/utils";
+import { sanitize } from "@/lib/sanitize";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -522,7 +523,7 @@ function DeliveryDetailModal({ row, onClose }: DeliveryDetailModalProps) {
               ) : isSvg ? (
                 <div
                   className="max-h-64 w-full overflow-hidden rounded-md border border-gray-200 bg-white p-2"
-                  dangerouslySetInnerHTML={{ __html: sig }}
+                  dangerouslySetInnerHTML={{ __html: sanitize(sig, "svg") }}
                 />
               ) : (
                 <p className="text-gray-500">Signature non disponible</p>

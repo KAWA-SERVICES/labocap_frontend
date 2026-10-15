@@ -84,7 +84,8 @@ function SkeletonRow({ cols }: { cols: number }) {
 export default function StatistiquesPage() {
   const { can } = usePermissions();
   const user = useAuthStore((s) => s.user);
-  const isAdmin = can(PERMISSIONS.VIEW_ADMIN_DASHBOARD);
+  // Les routes `/dashboard/**` exigent aussi `view-dashboard` côté API.
+  const isAdmin = can(PERMISSIONS.VIEW_DASHBOARD) && can(PERMISSIONS.VIEW_ADMIN_DASHBOARD);
 
   const { data: topExamens = [], isLoading: topExamensLoading } = useQuery({
     queryKey: ["dashboard", "top-examens"],
@@ -162,7 +163,7 @@ export default function StatistiquesPage() {
         breadcrumbs={[{ label: "Accueil", href: "/home" }, { label: "Statistiques" }]}
       />
 
-      <PermissionGate permission={PERMISSIONS.VIEW_ADMIN_DASHBOARD}>
+      <PermissionGate permission={[PERMISSIONS.VIEW_DASHBOARD, PERMISSIONS.VIEW_ADMIN_DASHBOARD]} mode="all">
         <div className="space-y-6">
       {/* LIGNE 2 : EXAMENS LES PLUS DEMANDÉS + STATUT D'EXAMENS */}
       <div className="flex flex-col lg:flex-row gap-6">

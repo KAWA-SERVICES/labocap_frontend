@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Eye, EyeOff, Save, UserCircle } from "lucide-react";
@@ -13,6 +13,8 @@ import { AuthentificationParApplication } from "./AuthentificationParApplication
 import { meApi } from "@/lib/api/me";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { motDePasseSchema } from "@/lib/mot-de-passe";
+import { ForceMotDePasse } from "@/components/ui/ForceMotDePasse";
 
 // ── Schemas Zod ──────────────────────────────────────────────────────────────
 
@@ -21,12 +23,12 @@ const profileSchema = z.object({
   lastname: z.string().min(1, "Le nom est requis"),
 });
 
-// Calque `profile/index.blade.php` : Ancien / Nouveau / Confirmer. Le minimum de
-// 8 caractères correspond à la contrainte @Size du backend (UpdatePasswordRequest).
+// Calque `profile/index.blade.php` : Ancien / Nouveau / Confirmer. Le minimum
+// de 12 caractères suit la politique de mot de passe de l'API.
 const passwordSchema = z
   .object({
     oldpassword: z.string().min(1, "L'ancien mot de passe est requis"),
-    newpassword: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+    newpassword: motDePasseSchema,
     password_confirmation: z.string().min(1, "La confirmation est requise"),
   })
   .refine((v) => v.newpassword === v.password_confirmation, {
@@ -105,11 +107,13 @@ export default function ProfilePage() {
     register: registerPassword,
     handleSubmit: handleSubmitPassword,
     reset: resetPassword,
+    control: controlPassword,
     formState: { errors: passwordErrors, isSubmitting: isPasswordSubmitting },
   } = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
     defaultValues: { oldpassword: "", newpassword: "", password_confirmation: "" },
   });
+  const newpassword = useWatch({ control: controlPassword, name: "newpassword" });
 
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
@@ -258,6 +262,7 @@ export default function ProfilePage() {
                   register={registerPassword("newpassword")}
                   error={passwordErrors.newpassword?.message}
                 />
+                <ForceMotDePasse valeur={newpassword} />
                 <PasswordField
                   label="Confirmez le mot de passe"
                   show={showConfirm}

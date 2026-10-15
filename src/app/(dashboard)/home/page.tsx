@@ -528,10 +528,27 @@ function SimpleCalendar() {
 
 export default function HomePage() {
   const { can } = usePermissions();
+
+  // L'API refuse (403) toutes les routes `/dashboard/**` sans `view-dashboard` :
+  // on n'en appelle aucune, et on le dit — même forme que la page Finance.
+  if (!can(PERMISSIONS.VIEW_DASHBOARD)) {
+    return (
+      <div className="flex min-h-[200px] items-center justify-center">
+        <p className="text-sm text-gray-500">Accès non autorisé.</p>
+      </div>
+    );
+  }
+
+  return <TableauDeBord />;
+}
+
+function TableauDeBord() {
+  const { can } = usePermissions();
   const queryClient = useQueryClient();
 
   const isAdmin = can(PERMISSIONS.VIEW_ADMIN_DASHBOARD);
-  const isFinance = can(PERMISSIONS.VIEW_DASHBORD_FINANCE);
+  // Chiffre d'affaires et état des factures : `view-dashboard-finance` côté API.
+  const isFinance = can(PERMISSIONS.VIEW_DASHBOARD_FINANCE);
   const isSecretary = can(PERMISSIONS.VIEW_SECRETARIAT_DASHBOARD);
   const isPathologist = can(PERMISSIONS.VIEW_PATHOLOGIST_DASHBOARD);
 

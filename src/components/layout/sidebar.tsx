@@ -6,43 +6,19 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  Stethoscope,
-  FileCheck,
-  Building2,
-  Users,
-  User,
-  Receipt,
-  DollarSign,
-  Folder,
-  TrendingDown,
-  Package,
-  Truck,
-  RefreshCw,
-  Briefcase,
-  AlertCircle,
-  UserCheck,
-  Settings,
-  Users2,
-  BookOpen,
-  ChevronDown,
-  ChevronRight,
-  FlaskConical,
-  Syringe,
-  BarChart3,
-} from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useUIStore } from "@/stores/ui.store";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useModules } from "@/hooks/useModules";
 import { BrandMark } from "@/components/ui/BrandMark";
-import { PERMISSIONS } from "@/lib/constants/permissions";
-import { testOrdersApi } from "@/lib/api/testOrders";
-import { inventoryApi } from "@/lib/api/inventory";
-import { refundsApi } from "@/lib/api/refunds";
-import { invoicesApi } from "@/lib/api/invoices";
-import { cashboxApi } from "@/lib/api/cashbox";
-import { supportApi } from "@/lib/api/support";
+import {
+  NAV,
+  type Gate,
+  type NavActionKey,
+  type NavEntry,
+  type NavSubItem,
+} from "@/components/layout/nav-config";
+import { useSidebarBadges } from "@/components/layout/useSidebarBadges";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -381,7 +357,8 @@ export function Sidebar() {
   const { sidebarCollapsed, mobileSidebarOpen, setMobileSidebarOpen } = useUIStore();
   // Un seul menu ouvert à la fois — voir MenuOuvertContext.
   const [menuOuvert, setMenuOuvert] = useState<string | null>(null);
-  const { can } = usePermissions();
+  const { can, canAny, canAll } = usePermissions();
+  const { has } = useModules();
   const { openTimeoffModal } = useUIStore();
   const pathname = usePathname();
 
@@ -403,62 +380,57 @@ export function Sidebar() {
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  const { data: immunoPendingCount } = useQuery({
-    queryKey: ["immuno-pending-count"],
-    queryFn: () => testOrdersApi.countImmunoPending().then((r) => r.data.count),
-    enabled: can(PERMISSIONS.VIEW_TEST_ORDERS),
-    refetchOnWindowFocus: false,
-  });
-
-  // Badge « Stocks » : articles ayant atteint le stock minimum (getnbrStockMinim).
-  const { data: stockMinimumCount } = useQuery({
-    queryKey: ["stock-minimum-count"],
-    queryFn: () => inventoryApi.countStockMinimum().then((r) => r.data.count),
-    enabled: can(PERMISSIONS.VIEW_ARTICLES),
-    refetchOnWindowFocus: false,
-  });
-
-  // Badge « Remboursements » : demandes en attente (getnbrRefundRequestPending).
-  const { data: refundPendingCount } = useQuery({
-    queryKey: ["refund-pending-count"],
-    queryFn: () => refundsApi.countPending().then((r) => r.data.count),
-    enabled: can(PERMISSIONS.VIEW_REFUNDS),
-    refetchOnWindowFocus: false,
-  });
-
-  // Badge « Demandes d'examen » : bons cyto/histo en attente (getnbrTestOrderpending).
-  const { data: testOrderPendingCount } = useQuery({
-    queryKey: ["test-order-pending-count"],
-    queryFn: () => testOrdersApi.countPending().then((r) => r.data.count),
-    enabled: can(PERMISSIONS.VIEW_TEST_ORDERS),
-    refetchOnWindowFocus: false,
-  });
-
-  // Badge « Factures » : factures non réglées (getnbrInvoicepending).
-  const { data: invoicePendingCount } = useQuery({
-    queryKey: ["invoice-pending-count"],
-    queryFn: () => invoicesApi.countUnpaid().then((r) => r.data.count),
-    enabled: can(PERMISSIONS.VIEW_INVOICES),
-    refetchOnWindowFocus: false,
-  });
-
-  // Badge « Caisses » : bons de caisse en attente (getnbrBonCaissePending).
-  const { data: voucherPendingCount } = useQuery({
-    queryKey: ["cashbox-voucher-pending-count"],
-    queryFn: () => cashboxApi.countPendingVouchers().then((r) => r.data.count),
-    enabled: can(PERMISSIONS.VIEW_CASHBOXES),
-    refetchOnWindowFocus: false,
-  });
-
-  // Badge « Signaler un problème » : tickets ouverts (getnbrTicketPending).
-  const { data: ticketOpenCount } = useQuery({
-    queryKey: ["ticket-open-count"],
-    queryFn: () => supportApi.countOpen().then((r) => r.data.count),
-    refetchOnWindowFocus: false,
-  });
-
   // Sur mobile, jamais réduit : on affiche toujours les libellés (comme Laravel).
   const collapsed = isMobile ? false : sidebarCollapsed;
+
+  // Compteurs des pastilles — cf. useSidebarBadges.
+  const badges = useSidebarBadges();
+
+  // Sous-entrées sans lien : la configuration les désigne par une clé.
+  const actions: Record<NavActionKey, () => void> = { openTimeoffModal };
+
+  /**
+   * Une entrée s'affiche si son module est activé ET si l'utilisateur a la
+   * permission demandée — `can` pour une permission seule, `canAny` / `canAll`
+   * pour une liste selon `mode`. Sans `gate`, elle est visible de tous.
+   */
+  const isVisible = (gate?: Gate): boolean => {
+    if (!gate) return true;
+    if (gate.module && !has(gate.module)) return false;
+    const { permission } = gate;
+    if (permission === undefined) return true;
+    if (!Array.isArray(permission)) return can(permission);
+    return gate.mode === "all" ? canAll(...permission) : canAny(...permission);
+  };
+
+  const renderSubItem = (child: NavSubItem) =>
+    child.kind === "link" ? (
+      <SubItem key={child.href} href={child.href} label={child.label} />
+    ) : (
+      <SubItem key={child.label} label={child.label} onClick={actions[child.action]} />
+    );
+
+  const renderEntry = (item: NavEntry) =>
+    item.kind === "link" ? (
+      <NavItem
+        key={item.href}
+        href={item.href}
+        icon={item.icon}
+        label={item.label}
+        collapsed={collapsed}
+        badge={item.badge ? (badges[item.badge] ?? 0) : undefined}
+      />
+    ) : (
+      <CollapseItem
+        key={item.label}
+        icon={item.icon}
+        label={item.label}
+        collapsed={collapsed}
+        badge={item.badge ? (badges[item.badge] ?? 0) : undefined}
+      >
+        {item.children.map((child) => isVisible(child.gate) && renderSubItem(child))}
+      </CollapseItem>
+    );
 
   // Logo + nom du labo depuis les Paramètres, avec repli sur la route publique
   // `/public/branding` : `/setting-apps` exige la permission `view-settings`, si
@@ -512,266 +484,18 @@ export function Sidebar() {
       <nav className="sidebar-scroll flex-1 overflow-y-auto py-3 overflow-x-hidden">
         <MenuOuvertContext.Provider value={{ ouvert: menuOuvert, setOuvert: setMenuOuvert }}>
 
-        {/* ══════════════ TABLEAU DE BORD ══════════════ */}
-        <NavGroup label="TABLEAU DE BORD" collapsed={collapsed}>
+        {/* Menu décrit dans nav-config.tsx : rubriques → entrées → sous-entrées. */}
+        {NAV.map(
+          (section, index) =>
+            isVisible(section.gate) && (
+              <NavGroup key={section.label} label={section.label} collapsed={collapsed}>
+                {section.items.map((item) => isVisible(item.gate) && renderEntry(item))}
 
-          <NavItem href="/home" icon={<Home className="w-5 h-5" />} label="Tableau de bord" collapsed={collapsed} />
-          {/* Analyses sorties du tableau de bord : même permission, rythme de
-              consultation différent (hebdomadaire plutôt que quotidien). */}
-          {can(PERMISSIONS.VIEW_ADMIN_DASHBOARD) && (
-            <NavItem href="/statistiques" icon={<BarChart3 className="w-5 h-5" />} label="Statistiques" collapsed={collapsed} />
-          )}
-
-          {/* ══════════════ EXAMENS ══════════════ */}
-        </NavGroup>
-        <NavGroup label="EXAMENS" collapsed={collapsed}>
-
-          {/* Catalogue d'examens */}
-          {can(PERMISSIONS.VIEW_TESTS) && (
-            <CollapseItem icon={<FlaskConical className="w-5 h-5" />} label="Catalogue d'examens" collapsed={collapsed}>
-              {can(PERMISSIONS.VIEW_TESTS) && <SubItem href="/examens" label="Tous les examens" />}
-              {can(PERMISSIONS.VIEW_CATEGORY_TESTS) && <SubItem href="/examens/categories" label="Catégories" />}
-            </CollapseItem>
-          )}
-
-          {/* Demandes d'examen */}
-          {can(PERMISSIONS.VIEW_TEST_ORDERS) && (
-            <CollapseItem
-              icon={<Stethoscope className="w-5 h-5" />}
-              label="Demandes d'examen"
-              collapsed={collapsed}
-              badge={testOrderPendingCount ?? 0}
-            >
-              {/* Laravel affiche « Mon espace » à tout utilisateur du menu Demandes
-                  d'examen (app2.blade.php) : pas de restriction au rôle Docteur. */}
-              <SubItem href="/test-orders/myspace" label="Mon espace" />
-              <SubItem href="/test-orders" label="Toutes les demandes" />
-              {/* NB : « Ajouter » (route test_order.create) est commenté dans
-                  app2.blade.php : absent des deux menus, pas un écart. La page
-                  /test-orders/create reste atteignable depuis la liste. */}
-              {can(PERMISSIONS.VIEW_TEST_ORDER_ASSIGNMENTS) && (
-                <SubItem href="/test-orders/macroscopy" label="Macroscopie" />
-              )}
-              {can(PERMISSIONS.VIEW_TEST_ORDER_ASSIGNMENTS) && (
-                <SubItem href="/test-orders/assignments" label="Affectation" />
-              )}
-              {can(PERMISSIONS.VIEW_TEST_ORDER_ASSIGNMENTS) && (
-                <SubItem href="/reports/suivi" label="Suivi des demandes" />
-              )}
-              {/* Le catalogue des étiquettes se remplit à l'usage ; cet écran
-                  n'existe que pour corriger une faute de frappe ou retirer un
-                  marquage abandonné. D'où la permission d'écriture. */}
-              {can(PERMISSIONS.MANAGE_TEST_ORDER_ASSIGNMENTS) && (
-                <SubItem href="/test-orders/etiquettes" label="Étiquettes" />
-              )}
-              <SubItem href="/search" label="Rechercher" />
-            </CollapseItem>
-          )}
-
-          {/* Immuno */}
-          {can(PERMISSIONS.VIEW_TEST_ORDERS) && (
-            <NavItem
-              href="/test-orders/immuno"
-              icon={<Syringe className="w-5 h-5" />}
-              label="Immuno"
-              collapsed={collapsed}
-              badge={immunoPendingCount ?? 0}
-            />
-          )}
-
-          {/* Comptes rendu */}
-          {can(PERMISSIONS.VIEW_REPORTS) && (
-            <CollapseItem icon={<FileCheck className="w-5 h-5" />} label="Comptes rendu" collapsed={collapsed}>
-              <SubItem href="/reports" label="Tous les comptes rendu" />
-              {can(PERMISSIONS.VIEW_SETTINGS) && <SubItem href="/reports/templates" label="Templates" />}
-              <SubItem href="/reports/history" label="Historiques" />
-              {can(PERMISSIONS.VIEW_SETTINGS) && <SubItem href="/reports/settings" label="Paramètres" />}
-            </CollapseItem>
-          )}
-
-          {/* Hôpitaux */}
-          {can(PERMISSIONS.VIEW_HOSPITALS) && (
-            <NavItem href="/hospitals" icon={<Building2 className="w-5 h-5" />} label="Hôpitaux" collapsed={collapsed} />
-          )}
-
-          {/* Médecins */}
-          {can(PERMISSIONS.VIEW_DOCTORS) && (
-            <NavItem href="/doctors" icon={<Users className="w-5 h-5" />} label="Médecins traitants" collapsed={collapsed} />
-          )}
-
-          {/* Patients */}
-          {can(PERMISSIONS.VIEW_PATIENTS) && (
-            <NavItem href="/patients" icon={<User className="w-5 h-5" />} label="Patients" collapsed={collapsed} />
-          )}
-
-          {/* NB : « Consultations » et « Prestations » sont volontairement absents du
-              menu — comme dans la navigation Laravel (app2.blade.php), qui n'expose pas
-              ces modules dans la sidebar (les routes existent mais pas l'entrée de menu). */}
-
-          {/* ══════════════ COMPTABILITÉS ══════════════ */}
-        </NavGroup>
-        <NavGroup label="COMPTABILITÉS" collapsed={collapsed}>
-
-          {/* Factures */}
-          {can(PERMISSIONS.VIEW_INVOICES) && (
-            <CollapseItem
-              icon={<Receipt className="w-5 h-5" />}
-              label="Factures"
-              collapsed={collapsed}
-              badge={invoicePendingCount ?? 0}
-            >
-              <SubItem href="/invoices" label="Toutes les Factures" />
-              <SubItem href="/invoices/create" label="Créer" />
-              {/* NB : « Rapports » et « Paramètre » sont volontairement absents, à la
-                  demande du métier — écart assumé vis-à-vis de Laravel (app2.blade.php),
-                  qui les expose sous permission view-setting-invoice. Les routes
-                  /invoices/business et /invoices/settings restent accessibles par URL. */}
-            </CollapseItem>
-          )}
-
-          {/* Caisses */}
-          {can(PERMISSIONS.VIEW_CASHBOXES) && (
-            <CollapseItem
-              icon={<DollarSign className="w-5 h-5" />}
-              label="Caisses"
-              collapsed={collapsed}
-              badge={voucherPendingCount ?? 0}
-            >
-              <SubItem href="/cashbox/vente" label="Caisse de vente" />
-              <SubItem href="/cashbox/depense" label="Caisse de dépense" />
-              <SubItem href="/cashbox/ticket" label="Bon de caisse" />
-              <SubItem href="/cashbox/cashbox-daily" label="Ouverture et fermeture" />
-            </CollapseItem>
-          )}
-
-          {/* Contrats */}
-          {can(PERMISSIONS.VIEW_CONTRATS) && (
-            <NavItem href="/contracts" icon={<Folder className="w-5 h-5" />} label="Contrats" collapsed={collapsed} />
-          )}
-
-          {/* Dépenses */}
-          {can(PERMISSIONS.VIEW_EXPENSES) && (
-            <CollapseItem icon={<TrendingDown className="w-5 h-5" />} label="Dépenses" collapsed={collapsed}>
-              <SubItem href="/expenses" label="Toutes les dépenses" />
-              {can(PERMISSIONS.MANAGE_SETTINGS) && (
-                <SubItem href="/expenses/categories" label="Catégories" />
-              )}
-            </CollapseItem>
-          )}
-
-          {/* Stocks */}
-          {can(PERMISSIONS.VIEW_ARTICLES) && (
-            <CollapseItem
-              icon={<Package className="w-5 h-5" />}
-              label="Stocks"
-              collapsed={collapsed}
-              badge={stockMinimumCount ?? 0}
-            >
-              {can(PERMISSIONS.VIEW_MOVEMENTS) && (
-                <SubItem href="/inventory/movements" label="Historique des stocks" />
-              )}
-              <SubItem href="/inventory/articles" label="Tous les articles" />
-              <SubItem href="/inventory/units" label="Unité de mesure" />
-            </CollapseItem>
-          )}
-
-          {/* Fournisseurs */}
-          {can(PERMISSIONS.VIEW_SUPPLIERS) && (
-            <CollapseItem icon={<Truck className="w-5 h-5" />} label="Fournisseurs" collapsed={collapsed}>
-              <SubItem href="/suppliers" label="Tous les fournisseurs" />
-              <SubItem href="/suppliers/categories" label="Catégories" />
-            </CollapseItem>
-          )}
-
-          {/* Remboursements */}
-          {can(PERMISSIONS.VIEW_REFUNDS) && (
-            <CollapseItem
-              icon={<RefreshCw className="w-5 h-5" />}
-              label="Remboursements"
-              collapsed={collapsed}
-              badge={refundPendingCount ?? 0}
-            >
-              <SubItem href="/refunds" label="Historiques" />
-              <SubItem href="/refunds/create" label="Ajouter" />
-              <SubItem href="/refunds/settings" label="Paramètres" />
-            </CollapseItem>
-          )}
-
-          {/* Clients Professionnels */}
-          {can(PERMISSIONS.VIEW_CLIENTS) && (
-            <NavItem href="/clients" icon={<Briefcase className="w-5 h-5" />} label="Clients Professionnels" collapsed={collapsed} />
-          )}
-
-          {/* ══════════════ ADMINISTRATIONS ══════════════ */}
-        </NavGroup>
-        <NavGroup label="ADMINISTRATIONS" collapsed={collapsed}>
-
-          {/* Signaler un problème */}
-          <CollapseItem
-            icon={<AlertCircle className="w-5 h-5" />}
-            label="Signaler un problème"
-            collapsed={collapsed}
-            badge={ticketOpenCount ?? 0}
-          >
-            <SubItem href="/support" label="Historiques" />
-            <SubItem href="/support/signaler" label="Signaler" />
-          </CollapseItem>
-
-          {/* Utilisateurs */}
-          {can(PERMISSIONS.VIEW_USERS) && (
-            <CollapseItem icon={<UserCheck className="w-5 h-5" />} label="Utilisateurs" collapsed={collapsed}>
-              {/* La liste des permissions n'est pas exposée au menu : ce sont
-                  307 lignes techniques (« view-appel-by-reports », « edit-tests »)
-                  qu'on n'administre pas une à une. Elles s'attribuent par les
-                  rôles, écran ci-dessous. La route reste accessible en direct. */}
-              {can(PERMISSIONS.VIEW_ROLES) && <SubItem href="/settings/roles" label="Rôles" />}
-              {can(PERMISSIONS.VIEW_USERS) && <SubItem href="/settings/users" label="Tous les utilisateurs" />}
-            </CollapseItem>
-          )}
-
-          {/* Paramètres */}
-          {can(PERMISSIONS.VIEW_SETTINGS) && (
-            <NavItem href="/settings" icon={<Settings className="w-5 h-5" />} label="Paramètres" collapsed={collapsed} />
-          )}
-
-          {/* ══════════════ EQUIPES ══════════════ */}
-        </NavGroup>
-        <NavGroup label="EQUIPES" collapsed={collapsed}>
-
-          {/* Noms calqués sur le menu Laravel (layouts/app2 : EQUIPES) :
-              Tous les employés / Demande de congé / Toutes les demandes.
-              Laravel n'a aucune entrée « Paie » (la paie vit dans la fiche employé).
-              Seul « Tous les employés » est sous permission (view-employees) ; les deux
-              entrées de congés sont ouvertes à tous, sinon un employé sans droit RH ne
-              peut plus déposer sa propre demande de congé. */}
-          <CollapseItem icon={<Users2 className="w-5 h-5" />} label="Equipes" collapsed={collapsed}>
-            {can(PERMISSIONS.VIEW_EMPLOYEES) && (
-              <SubItem href="/hr/employees" label="Tous les employés" />
-            )}
-            <SubItem label="Demande de congé" onClick={openTimeoffModal} />
-            <SubItem href="/hr/timeoff" label="Toutes les demandes" />
-          </CollapseItem>
-
-          {/* ══════════════ DOCUMENTATIONS ══════════════ */}
-        </NavGroup>
-        <NavGroup label="DOCUMENTATIONS" collapsed={collapsed}>
-
-          {/* Structure identique à Laravel (app2.blade.php) : seul « Tous les
-              documents » est protégé (view-docs) ; « Partagé avec moi » et
-              « Toutes les catégories » sont visibles par tous ; pas de corbeille. */}
-          <CollapseItem icon={<BookOpen className="w-5 h-5" />} label="Documentations" collapsed={collapsed}>
-            {can(PERMISSIONS.VIEW_DOCS) && <SubItem href="/docs" label="Tous les documents" />}
-            <SubItem href="/docs/shared" label="Partagé avec moi" />
-            <SubItem href="/docs/categories" label="Toutes les catégories" />
-          </CollapseItem>
-
-          {/* NB : pas d'entrée « Recherche » à la racine — Laravel n'expose
-              « Rechercher » que sous « Demandes d'examen » (app2.blade.php), où
-              elle figure déjà. Ce doublon a été retiré. */}
-
-          {/* Bottom padding */}
-          <div className="h-4" />
-        </NavGroup>
+                {/* Bottom padding */}
+                {index === NAV.length - 1 && <div className="h-4" />}
+              </NavGroup>
+            ),
+        )}
       </MenuOuvertContext.Provider>
       </nav>
     </aside>

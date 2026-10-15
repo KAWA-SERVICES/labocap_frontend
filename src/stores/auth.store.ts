@@ -82,8 +82,12 @@ export const useAuthStore = create<AuthStore>()(
     {
       name: "auth-storage",
       // Ne jamais stocker les tokens JWT ici — ils sont dans les cookies HttpOnly
+      // Le localStorage est lisible par tout script de la page : on n'y garde
+      // que ce qui sert au rendu avant revalidation par /auth/me (AuthGuard),
+      // ni la signature (image) ni le téléphone. `undefined` disparaît à la
+      // sérialisation JSON.
       partialize: (state) => ({
-        user: state.user,
+        user: state.user && { ...state.user, signature: undefined, phone: undefined },
         isAuthenticated: state.isAuthenticated,
       }),
     }

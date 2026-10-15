@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import apiClient from "@/lib/api/client";
-import { getApiErrorMessageFromBlob } from "@/lib/api/errorMessages";
+import { messageErreurFichier, urlFichier, type RefFichier } from "@/lib/fichiers";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -10,6 +10,8 @@ export interface Doc {
   id: string;
   title: string;
   attachment: string;
+  /** Identifiant du fichier pour `GET /files/{id}` (cf. src/lib/fichiers.ts). */
+  fileId?: string;
   isCurrentVersion?: boolean;
   fileSize?: number;
   documentationCategoryId?: string;
@@ -25,6 +27,7 @@ export interface DocVersion {
   version: number;
   title?: string;
   attachment: string;
+  fileId?: string;
   fileSize?: number;
   userId?: string;
   createdAt: string;
@@ -34,36 +37,32 @@ export interface DocVersion {
 // Helpers
 // ---------------------------------------------------------------------------
 
-export function getDocFileUrl(attachment: string): string {
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1").replace(/\/$/, "");
-  return `${base}/files/${attachment}`;
-}
-
 /**
  * Télécharge un fichier joint en passant par apiClient (cookies + refresh token
  * via l'intercepteur), plutôt qu'un `<a href>` direct qui contournerait le
  * rafraîchissement d'authentification (le endpoint /files/** exige un JWT valide).
+ * Un 403 (entité non lisible) ou un 404 (fichier rattaché à rien) finit en toast.
  */
 export async function downloadDocFile(
-  attachment: string,
+  fichier: RefFichier,
   filename?: string
 ): Promise<void> {
   try {
-    const response = await apiClient.get(`/files/${attachment}`, {
+    const response = await apiClient.get(urlFichier(fichier), {
       responseType: "blob",
     });
     const blob = response.data as Blob;
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = filename || attachment.split("/").pop() || "document";
+    a.download = filename || fichier.path?.split("/").pop() || "document";
     document.body.appendChild(a);
     a.click();
     a.remove();
     window.URL.revokeObjectURL(url);
   } catch (err) {
     toast.error(
-      await getApiErrorMessageFromBlob(err, "Échec du téléchargement du fichier"),
+      await messageErreurFichier(err, "Échec du téléchargement du fichier"),
     );
   }
 }
@@ -73,13 +72,13 @@ export async function downloadDocFile(
  * puis exposé en `blob:` — l'URL reste sur le front (jamais le chemin backend) et
  * le CSP strict de l'API ne bloque pas l'aperçu (PDF/images).
  */
-export async function openDocFile(attachment: string): Promise<void> {
+export async function openDocFile(fichier: RefFichier): Promise<void> {
   // Ouvrir l'onglet SYNCHRONEMENT (dans le geste de clic), avant tout `await` :
   // sinon le navigateur bloque le popup (window.open après une promesse n'est
   // plus rattaché au geste utilisateur).
   const tab = window.open("about:blank", "_blank");
   try {
-    const response = await apiClient.get(`/files/${attachment}`, {
+    const response = await apiClient.get(urlFichier(fichier), {
       responseType: "blob",
     });
     const blob = response.data as Blob;
@@ -91,7 +90,7 @@ export async function openDocFile(attachment: string): Promise<void> {
       // Popup bloqué malgré tout → repli sur un téléchargement.
       const a = document.createElement("a");
       a.href = url;
-      a.download = attachment.split("/").pop() || "document";
+      a.download = fichier.path?.split("/").pop() || "document";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -100,7 +99,7 @@ export async function openDocFile(attachment: string): Promise<void> {
   } catch (err) {
     if (tab) tab.close();
     toast.error(
-      await getApiErrorMessageFromBlob(err, "Échec de l'ouverture du fichier"),
+      await messageErreurFichier(err, "Échec de l'ouverture du fichier"),
     );
   }
 }

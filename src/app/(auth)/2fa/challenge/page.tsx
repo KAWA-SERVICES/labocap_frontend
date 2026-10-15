@@ -12,6 +12,7 @@ import { resolvePostLoginRoute } from "@/lib/auth-flow";
 import {
   clearPending2fa,
   getPending2faEmail,
+  getPending2faEmailPourRenvoi,
   getPending2faExpiry,
   getPending2faTotalMs,
   pending2faParApplication,
@@ -32,16 +33,6 @@ const twoFactorSchema = z.object({
 
 type TwoFactorFormData = z.infer<typeof twoFactorSchema>;
 
-function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  if (!domain) return email;
-  const masked =
-    local.length <= 2
-      ? local[0] + "***"
-      : local[0] + "***" + local[local.length - 1];
-  return `${masked}@${domain}`;
-}
-
 /** « 4:07 » — temps restant avant expiration du code. */
 
 export default function TwoFactorChallengePage() {
@@ -55,10 +46,9 @@ export default function TwoFactorChallengePage() {
   // challenge, et la relire à chaque seconde serait inutile.
   const [totalMs] = useState(() => getPending2faTotalMs());
 
-  const storedEmail = remainingMs !== null ? getPending2faEmail() : null;
-  const maskedEmail = storedEmail
-    ? maskEmail(storedEmail)
-    : "votre adresse e-mail";
+  // Le cookie porte l'adresse déjà masquée : affichée telle quelle.
+  const maskedEmail =
+    (remainingMs !== null && getPending2faEmail()) || "votre adresse e-mail";
 
   // Le code vient-il de l'application ? Le serveur l'a dit au login ; l'écran
   // en a besoin pour ne pas annoncer un courriel que personne n'a reçu.
@@ -168,7 +158,7 @@ export default function TwoFactorChallengePage() {
   };
 
   const handleResend = async () => {
-    const email = getPending2faEmail();
+    const email = getPending2faEmailPourRenvoi();
     if (!email) {
       backToLogin("Session expirée, veuillez vous reconnecter.");
       return;

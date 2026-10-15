@@ -24,6 +24,7 @@ import {
   type RefundRequest,
   type RefundRequestLog,
 } from "@/lib/api/refunds";
+import { openDocFile } from "@/lib/api/docs";
 import { EditRefundModal } from "./EditRefundModal";
 
 // ---------------------------------------------------------------------------
@@ -351,14 +352,13 @@ function RefundsContent() {
               <p>
                 <span className="font-medium">Pièce jointe :</span>{" "}
                 {detail.attachment ? (
-                  <a
-                    href={`/api/v1/files/${detail.attachment}`}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => openDocFile({ fileId: detail.fileId, path: detail.attachment })}
                     className="text-blue-600 hover:underline"
                   >
                     Voir
-                  </a>
+                  </button>
                 ) : (
                   ""
                 )}

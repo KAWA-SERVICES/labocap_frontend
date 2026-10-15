@@ -16,6 +16,7 @@ import { NativeSelect } from "@/components/ui/NativeSelect";
 import { IconButton } from "@/components/ui/IconButton";
 import { TextInput } from "@/components/ui/TextInput";
 import { usePermissions } from "@/hooks/usePermissions";
+import { INPUT_CLASS as inputClass } from "@/lib/ui/inputClass";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { PERMISSIONS } from "@/lib/constants/permissions";
@@ -190,6 +191,21 @@ export default function InvoiceDetailPage({
   // Encaissement manuel mis hors service — voir le bloc commenté dans le rendu.
   // const [codeNormalise, setCodeNormalise] = useState("");
 
+  /**
+   * Adresser la facture à quelqu'un d'autre que ce qu'elle porte.
+   *
+   * Fermé par défaut : la facture va au patient dans la très grande majorité
+   * des cas, et ouvrir trois champs à chaque déclaration ferait cliquer pour
+   * rien. C'est ici et pas ailleurs parce que c'est ici qu'on le découvre —
+   * l'agent a la facture sous les yeux, et c'est le dernier instant où elle
+   * peut encore changer de nom : une fois partie à la DGI, un document fiscal
+   * ne se reprend plus.
+   */
+  const [changeDestinataire, setChangeDestinataire] = useState(false);
+  const [destNom, setDestNom] = useState("");
+  const [destAdresse, setDestAdresse] = useState("");
+  const [destIfu, setDestIfu] = useState("");
+
   /** Récapitulatif de confirmation, avant tout envoi à la DGI. */
   const [showNormalizeModal, setShowNormalizeModal] = useState(false);
   /** Récapitulatif de confirmation, avant création de l'avoir. */
@@ -316,7 +332,17 @@ export default function InvoiceDetailPage({
       invoicesApi
         // Un avoir n'encaisse pas : lui envoyer un mode n'aurait aucun sens.
         // Une facture déjà réglée garde le sien, le serveur ignore celui-ci.
-        .normalize(id, isAvoir ? undefined : payment)
+        .normalize(
+          id,
+          isAvoir ? undefined : payment,
+          changeDestinataire && destNom.trim()
+            ? {
+                nom: destNom.trim(),
+                adresse: destAdresse.trim() || undefined,
+                ifu: destIfu.trim() || undefined,
+              }
+            : undefined,
+        )
         .then((r) => r.data),
     onSuccess: (normalized: Invoice) => {
       queryClient.invalidateQueries({ queryKey: ["invoice", id] });
@@ -679,11 +705,106 @@ export default function InvoiceDetailPage({
               </p>
             </div>
           )}
+          {/* Le destinataire, modifiable jusqu'au dernier instant. Saisie libre :
+              le laboratoire facture des cliniques qu'il ne reverra pas, et leur
+              créer une fiche à chacune encombrerait un référentiel pour un seul
+              examen. */}
+          <div className="rounded-lg border border-gray-200 p-3">
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={changeDestinataire}
+                onChange={(e) => {
+                  setChangeDestinataire(e.target.checked);
+                  if (e.target.checked && !destNom) {
+                    setDestNom(invoice.clientName ?? "");
+                    setDestAdresse(invoice.clientAddress ?? "");
+                    setDestIfu(invoice.clientIfu ?? "");
+                  }
+                }}
+                className="mt-1"
+              />
+              <span>
+                Facturer à un autre destinataire
+                <span className="mt-0.5 block text-xs text-gray-500">
+                  Une clinique qui règle pour son patient, par exemple. Ce nom
+                  part avec la déclaration à la DGI.
+                </span>
+              </span>
+            </label>
+
+            {changeDestinataire && (
+              <div className="mt-3 space-y-3">
+                <div>
+                  <label
+                    htmlFor="dest-nom"
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                  >
+                    Nom ou raison sociale
+                  </label>
+                  <input
+                    id="dest-nom"
+                    type="text"
+                    value={destNom}
+                    onChange={(e) => setDestNom(e.target.value)}
+                    maxLength={150}
+                    placeholder="CLINIQUE LA PROVIDENCE"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="dest-adresse"
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                  >
+                    Adresse
+                  </label>
+                  <input
+                    id="dest-adresse"
+                    type="text"
+                    value={destAdresse}
+                    onChange={(e) => setDestAdresse(e.target.value)}
+                    placeholder="Cotonou, Ganhi"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="dest-ifu"
+                    className="mb-1 block text-sm font-medium text-gray-700"
+                  >
+                    IFU <span className="font-normal text-gray-500">(facultatif)</span>
+                  </label>
+                  <input
+                    id="dest-ifu"
+                    type="text"
+                    value={destIfu}
+                    onChange={(e) => setDestIfu(e.target.value)}
+                    maxLength={50}
+                    placeholder="3201900123456"
+                    className={inputClass}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Identifie l&apos;acheteur auprès de la DGI. Un patient
+                    n&apos;en a pas ; une clinique, si.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
           <dl className="divide-y divide-gray-100 rounded-lg border border-gray-200">
             <RecapRow label="Type" value={isAvoir ? "Facture d'avoir" : "Facture de vente"} />
             <RecapRow label="Code" value={invoice.code ?? ""} />
             <RecapRow label="Date" value={formatDateTimeSql(invoice.createdAt)} />
-            <RecapRow label="Client" value={invoice.clientName ?? ""} />
+            <RecapRow
+              label="Facturé à"
+              value={
+                changeDestinataire && destNom.trim()
+                  ? destNom.trim()
+                  : invoice.clientName ?? ""
+              }
+            />
             <RecapRow label="Nombre de lignes" value={String(lines.length)} />
             <RecapRow
               label="Montant TTC"

@@ -363,10 +363,10 @@ export default function DocsExplorerPage() {
                       </>
                     ) : (
                       <>
-                        <CardBtn onClick={() => openDocFile(doc.attachment)} title="Visualiser" className="hover:text-blue-600">
+                        <CardBtn onClick={() => openDocFile({ fileId: doc.fileId, path: doc.attachment })} title="Visualiser" className="hover:text-blue-600">
                           <Eye className="h-4 w-4" />
                         </CardBtn>
-                        <CardBtn onClick={() => downloadDocFile(doc.attachment)} title="Télécharger" className="hover:text-green-600">
+                        <CardBtn onClick={() => downloadDocFile({ fileId: doc.fileId, path: doc.attachment })} title="Télécharger" className="hover:text-green-600">
                           <Download className="h-4 w-4" />
                         </CardBtn>
                         <CardBtn onClick={() => setHistoryDoc(doc)} title="Historique des versions" className="hover:text-purple-600">
@@ -556,7 +556,7 @@ export default function DocsExplorerPage() {
                       <td className="py-2">
                         <button
                           type="button"
-                          onClick={() => downloadDocFile(v.attachment)}
+                          onClick={() => downloadDocFile({ fileId: v.fileId, path: v.attachment })}
                           className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
                         >
                           <Download className="h-3.5 w-3.5" />

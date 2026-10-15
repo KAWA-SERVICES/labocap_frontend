@@ -5,6 +5,7 @@ import {
   CSP_REPORT_PATH,
   generateNonce,
 } from "@/lib/security/csp";
+import { getEnabledModules, moduleForPath } from "@/lib/modules";
 
 /**
  * Garde de routes côté serveur (Proxy Next.js 16, ex-`middleware`).
@@ -119,6 +120,23 @@ function resolveAuthRedirect(request: NextRequest): URL | null {
   return null;
 }
 
+/**
+ * Garde des modules optionnels (cf. src/lib/modules.ts, docs/modules.md) : une
+ * route appartenant à un module désactivé renvoie à l'accueil. `APP_MODULES`
+ * est relue à chaque requête — comme `CSP_ENFORCE`, elle se bascule par un
+ * simple redémarrage du conteneur, sans reconstruire l'image.
+ *
+ * N'intervient qu'APRÈS la garde d'authentification : un visiteur non connecté
+ * est d'abord envoyé au login, comme sur toute autre page protégée.
+ */
+function resolveModuleRedirect(request: NextRequest): URL | null {
+  const appModule = moduleForPath(request.nextUrl.pathname);
+  if (appModule && !getEnabledModules().includes(appModule)) {
+    return new URL("/home", request.url);
+  }
+  return null;
+}
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -132,7 +150,8 @@ export function proxy(request: NextRequest) {
   const nonce = generateNonce();
   const policy = buildCspPolicy(nonce);
 
-  const redirect = resolveAuthRedirect(request);
+  const redirect =
+    resolveAuthRedirect(request) ?? resolveModuleRedirect(request);
   if (redirect) {
     const response = NextResponse.redirect(redirect);
     applyCspHeaders(response.headers, policy);
@@ -155,6 +174,7 @@ export function proxy(request: NextRequest) {
 /**
  * Exclut les internes Next.js et les fichiers statiques du proxy :
  * tout `_next`, favicon, et tout chemin contenant une extension de fichier.
+ * Les routes des modules (`/biologie/…`, `/agenda`) sont donc bien couvertes.
  *
  * `_next` en entier, et non ses seuls sous-chemins `static` et `image` : le
  * rechargement à chaud ouvre une WebSocket sur `/_next/webpack-hmr`, que le
