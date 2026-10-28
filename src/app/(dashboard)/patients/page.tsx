@@ -28,6 +28,7 @@ import { RHFCreatableSelect } from "@/components/ui/RHFCreatableSelect";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCFA, generatePatientCode, nomComplet } from "@/lib/utils";
 import { PERMISSIONS } from "@/lib/constants/permissions";
+import { LANGUE_OPTIONS } from "@/lib/constants/patient";
 import { patientsApi, Patient, PatientRequest } from "@/lib/api/patients";
 import type { PageResponse, ApiError } from "@/types/api";
 import type { UseFormWatch, UseFormSetValue } from "react-hook-form";
@@ -74,12 +75,6 @@ interface PatientFormFieldsProps {
 const GENRE_OPTIONS = [
   { value: "M", label: "Masculin" },
   { value: "F", label: "Féminin" },
-];
-
-const LANGUE_OPTIONS = [
-  { value: "français", label: "Français" },
-  { value: "fon", label: "Fon" },
-  { value: "anglais", label: "Anglais" },
 ];
 
 const YEAR_OR_MONTH_OPTIONS = [
