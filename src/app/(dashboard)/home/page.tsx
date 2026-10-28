@@ -45,6 +45,7 @@ import {
 } from "@/components/common/TablePagination";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { IconButton } from "@/components/ui/IconButton";
+import { RappelsPatients } from "@/components/dashboard/RappelsPatients";
 
 import { usePermissions } from "@/hooks/usePermissions";
 import { cn, formatCFA, formatDate } from "@/lib/utils";
@@ -896,6 +897,9 @@ function TableauDeBord() {
           </Card>
         </>
       )}
+
+      {/* Rappels automatiques : pour tout profil qui voit le tableau de bord. */}
+      <RappelsPatients />
 
       {/* ==================================================================
           LIGNE PLEINE LARGEUR — le travail du jour

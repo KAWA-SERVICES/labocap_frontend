@@ -1,4 +1,5 @@
 import apiClient from "./client";
+import type { IssueRappel } from "@/lib/rappel";
 
 /**
  * `/dashboard/stats` — profil administrateur (`DashboardDto.AdminStats`).
@@ -143,6 +144,19 @@ export interface DoctorOrder {
   reportStatus: number; // 0 = en attente, 1 = terminé
 }
 
+/** `/dashboard/rappels` — rappels automatiques des patients (`DashboardDto.Rappels`). */
+export interface RappelsStats {
+  /** Dernier rappel de chaque compte rendu sur la période, par issue (toutes les issues présentes). */
+  parIssue: Record<IssueRappel, number>;
+  /** Patients non joints, ni marqués informés, ni venus chercher le résultat — toutes dates. */
+  aRappeler: number;
+  /**
+   * Ce qui empêche des appels de partir : `fluidchat_api` (serveur) ou une clé
+   * audio `fluidchat_audio_*` vide. Vide si tout est prêt.
+   */
+  reglagesManquants: string[];
+}
+
 export const dashboardApi = {
   getStats: () => apiClient.get<AdminStats>("/dashboard/stats"),
   /**
@@ -163,4 +177,7 @@ export const dashboardApi = {
   getDoctorAppointments: () => apiClient.get<AppointmentItem[]>("/dashboard/doctor/appointments"),
   getDoctorOrders: () => apiClient.get<DoctorOrder[]>("/dashboard/doctor/orders"),
   getDoctorOrdersToday: () => apiClient.get<DoctorOrder[]>("/dashboard/doctor/orders-today"),
+  /** Sans dates, l'API prend les 7 derniers jours. Dates au format `YYYY-MM-DD`. */
+  getRappels: (params?: { dateBegin?: string; dateEnd?: string }) =>
+    apiClient.get<RappelsStats>("/dashboard/rappels", { params }),
 };
