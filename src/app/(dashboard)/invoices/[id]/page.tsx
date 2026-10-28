@@ -6,7 +6,15 @@ import { toast } from "sonner";
 import type { AxiosError } from "axios";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { BadgeCheck, ExternalLink, FileMinus, Pencil, ShieldCheck } from "lucide-react";
+import {
+  BadgeCheck,
+  ExternalLink,
+  FileMinus,
+  MessageSquare,
+  MessageSquareWarning,
+  Pencil,
+  ShieldCheck,
+} from "lucide-react";
 
 import { CrudModal } from "@/components/common/CrudModal";
 import { DataTable } from "@/components/common/DataTable";
@@ -19,6 +27,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { INPUT_CLASS as inputClass } from "@/lib/ui/inputClass";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { formatDateTime } from "@/lib/utils";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { DEFAULT_REPORT_FOOTER } from "@/lib/constants/report";
 import {
@@ -357,6 +366,27 @@ export default function InvoiceDetailPage({
     },
   });
 
+  /**
+   * Envoi du SMS de la facture normalisée, quand l'envoi automatique n'est
+   * jamais parti (passerelle en panne au moment de la normalisation, numéro
+   * ajouté depuis). Le serveur refuse un second SMS : le bouton disparaît dès
+   * que la date d'envoi revient.
+   */
+  const smsMutation = useMutation({
+    mutationFn: () => invoicesApi.envoyerSms(id).then((r) => r.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      toast.success("SMS envoyé au patient");
+    },
+    onError: (err: Error) => {
+      // Un refus « déjà parti » vient d'un envoi fait ailleurs : relire la
+      // facture retire le bouton.
+      queryClient.invalidateQueries({ queryKey: ["invoice", id] });
+      const apiMessage = (err as AxiosError<ApiError>).response?.data?.message;
+      toast.error(apiMessage ?? err.message ?? "SMS non envoyé");
+    },
+  });
+
   /** Création de l'avoir. La facture d'origine reste intacte. */
   const creditNoteMutation = useMutation({
     mutationFn: () => invoicesApi.createCreditNote(id).then((r) => r.data),
@@ -444,6 +474,9 @@ export default function InvoiceDetailPage({
    * Il commande le basculement « Normaliser » → « Voir la facture normalisée ».
    */
   const isNormalized = Boolean(invoice.normalizedUrl);
+
+  /** Facture normalisée de vente dont le SMS au patient n'est jamais parti. */
+  const smsAEnvoyer = isNormalized && !isAvoir && !invoice.shareSmsSentAt;
 
   /**
    * La facture a-t-elle été déclarée, par l'un ou l'autre parcours ?
@@ -540,6 +573,19 @@ export default function InvoiceDetailPage({
           <div className="flex flex-wrap items-center gap-2">
             {/* Une fois normalisée, la facture ne propose plus que l'accès au
                 document : la renvoyer produirait un second document fiscal. */}
+            {/* Le SMS ne part qu'une fois : le bouton n'est là que tant
+                qu'aucun n'est parti. */}
+            {smsAEnvoyer && canEditInvoices && (
+              <Button
+                variant="secondary"
+                icon={<MessageSquare className="h-4 w-4" />}
+                onClick={() => smsMutation.mutate()}
+                loading={smsMutation.isPending}
+              >
+                Envoyer le SMS
+              </Button>
+            )}
+
             {isNormalized ? (
               <Button
                 variant="secondary"
@@ -923,6 +969,19 @@ export default function InvoiceDetailPage({
                 <BadgeCheck className="h-4 w-4" />
                 Facture déjà normalisée
               </p>
+            )}
+            {isNormalized && !isAvoir && (
+              invoice.shareSmsSentAt ? (
+                <p className="flex items-center gap-1.5 text-[.8rem] text-green-700">
+                  <MessageSquare className="h-4 w-4" />
+                  SMS au patient : envoyé le {formatDateTime(invoice.shareSmsSentAt)}
+                </p>
+              ) : (
+                <p className="flex items-center gap-1.5 text-[.8rem] text-amber-700">
+                  <MessageSquareWarning className="h-4 w-4" />
+                  SMS au patient : non envoyé
+                </p>
+              )
             )}
           </div>
 
