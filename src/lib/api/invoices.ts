@@ -88,6 +88,8 @@ export interface Invoice {
    * page de « Normaliser la facture » à « Voir la facture normalisée ».
    */
   normalizedUrl?: string;
+  /** Date d'envoi du SMS de la facture au patient. Nul ⇒ aucun SMS n'est parti. */
+  shareSmsSentAt?: string | null;
   qrcode?: string;
   /** Code de la facture de vente d'origine, pour un avoir. */
   referenceCode?: string;
@@ -261,6 +263,12 @@ export const invoicesApi = {
    */
   downloadNormalizedDocument: (id: string) =>
     apiClient.get(`/invoices/${id}/normalized-document`, { responseType: "blob" }),
+
+  /**
+   * Envoie au patient le SMS de sa facture normalisée, quand l'envoi
+   * automatique n'est jamais parti. Le serveur refuse un second SMS.
+   */
+  envoyerSms: (id: string) => apiClient.post<Invoice>(`/invoices/${id}/sms`),
 
   /** Crée la facture d'avoir contrepassant cette facture de vente. */
   createCreditNote: (id: string) =>
