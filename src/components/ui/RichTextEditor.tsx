@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { sanitize } from "@/lib/sanitize";
+import { DictationButton } from "./DictationButton";
 import {
   Bold,
   Italic,
@@ -48,6 +49,8 @@ export interface RichTextEditorProps {
   placeholder?: string;
   /** Hauteur minimale de la zone d'édition (classe Tailwind). Défaut min-h-[200px]. */
   minHeightClass?: string;
+  /** Affiche le bouton micro de dictée vocale (POST /dictees, permission edit-reports). */
+  dictation?: boolean;
 }
 
 const HEADING_OPTIONS = [
@@ -163,6 +166,7 @@ export function RichTextEditor({
   disabled = false,
   placeholder,
   minHeightClass = "min-h-[200px]",
+  dictation = false,
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [isEmpty, setIsEmpty] = useState(!value);
@@ -282,6 +286,24 @@ export function RichTextEditor({
     handleInput();
   };
 
+  // Texte dicté : inséré au curseur s'il est dans l'éditeur, sinon à la fin.
+  // insertText garde l'annulation (Ctrl+Z) et passe par handleInput comme la frappe.
+  const insertDictation = (texte: string) => {
+    const el = editorRef.current;
+    if (disabled || !el) return;
+    el.focus();
+    const sel = window.getSelection();
+    if (sel && (sel.rangeCount === 0 || !el.contains(sel.anchorNode))) {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    document.execCommand("insertText", false, texte + " ");
+    handleInput();
+  };
+
   // Valeur affichée dans le select police (vide si la police courante n'est pas listée).
   const fontSelectValue = FONT_OPTIONS.find(
     (f) => f.toLowerCase() === fontName.toLowerCase()
@@ -298,6 +320,12 @@ export function RichTextEditor({
       {/* Barre d'outils */}
       {!disabled && (
         <div className="flex flex-wrap items-center gap-0.5 border-b border-gray-200 px-2 py-1.5">
+          {dictation && (
+            <>
+              <DictationButton onText={insertDictation} />
+              <Sep />
+            </>
+          )}
           {/* Style de paragraphe (synchronisé) */}
           <select
             title="Style de paragraphe"
