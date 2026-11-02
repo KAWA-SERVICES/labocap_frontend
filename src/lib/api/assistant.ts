@@ -142,7 +142,9 @@ async function flux(
   const envoyerUneFois = () => {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      Accept: "text/event-stream",
+      // JSON accepté aussi : un refus (quota, réglages…) arrive avant le flux, en
+      // JSON ; sans lui, le serveur ne peut pas l'écrire et répond un 500 vide.
+      Accept: "text/event-stream, application/json",
     };
     const agence = getSelectedBranchId();
     if (agence) headers["X-Branch-Id"] = agence;
