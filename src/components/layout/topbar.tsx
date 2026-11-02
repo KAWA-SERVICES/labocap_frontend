@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { User, LogOut, ChevronDown } from "lucide-react";
+import { User, LogOut, ChevronDown, MessageSquare } from "lucide-react";
 
 /** Icône hamburger identique à Laravel (`mdi mdi-menu`) — barres serrées. */
 function MdiMenuIcon({ className }: { className?: string }) {
@@ -20,6 +20,10 @@ import { useBranding } from "@/hooks/useBranding";
 import { authApi } from "@/lib/api/auth";
 import { Button } from "@/components/ui/Button";
 import { nomComplet } from "@/lib/utils";
+import { useAssistantStore } from "@/stores/assistant.store";
+import { useEtatAssistant } from "@/components/assistant/AssistantPanel";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PERMISSIONS } from "@/lib/constants/permissions";
 
 export function Topbar() {
   const { toggleSidebar, toggleMobileSidebar } = useUIStore();
@@ -39,6 +43,15 @@ export function Topbar() {
   const { appName } = useBranding();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
+  const basculerAssistant = useAssistantStore((s) => s.basculer);
+  const assistantOuvert = useAssistantStore((s) => s.ouvert);
+  const { can } = usePermissions();
+  const { data: etatAssistant } = useEtatAssistant();
+  // Le bouton n'apparaît que si l'assistant sert à quelque chose : actif pour
+  // qui a le droit de s'en servir, ou à configurer pour qui l'administre.
+  const voirAssistant =
+    (can(PERMISSIONS.VIEW_ASSISTANT) && etatAssistant?.actif === true) ||
+    can(PERMISSIONS.MANAGE_ASSISTANT);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const initials = user
@@ -119,6 +132,19 @@ export function Topbar() {
           </>
         ) : null}
       </div>
+
+      {voirAssistant ? (
+        <button
+          type="button"
+          onClick={basculerAssistant}
+          aria-pressed={assistantOuvert}
+          className="flex h-10 flex-shrink-0 items-center gap-2 rounded-[var(--radius-control)] bg-blue-600 px-3 text-sm text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+        >
+          <MessageSquare className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden sm:inline">Assistant</span>
+          <span className="sr-only sm:hidden">Assistant</span>
+        </button>
+      ) : null}
 
       {/* Right: user dropdown */}
       <div className="relative flex-shrink-0" ref={dropdownRef}>

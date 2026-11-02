@@ -12,12 +12,13 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  // Inventaire (grep getUserMedia / mediaDevices / geolocation : aucun usage) :
-  // les « appels vocaux » et notes partent de l'API (OurVoice), jamais du micro
-  // du navigateur ; la signature se dessine au canvas, pas à la caméra. On coupe
-  // donc les trois. Le presse-papiers (navigator.clipboard, accès mobile) garde
+  // Inventaire (grep getUserMedia / mediaDevices / geolocation) : seul le
+  // micro sert, à la dictée des comptes rendus (RichTextEditor), sur notre
+  // propre origine — `self`, jamais un iframe tiers. Les « appels vocaux »
+  // partent de l'API (OurVoice) ; la signature se dessine au canvas, pas à la
+  // caméra : caméra et géolocalisation restent coupées. Le presse-papiers garde
   // sa valeur par défaut (`self`).
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
 ];
 
 const nextConfig: NextConfig = {

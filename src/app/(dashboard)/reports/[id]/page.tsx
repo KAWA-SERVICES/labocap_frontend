@@ -547,6 +547,7 @@ export default function ReportDetailPage({
                       value={field.value ?? ""}
                       onChange={field.onChange}
                       disabled={!canEdit}
+                      dictation
                       placeholder="Saisir le récapitulatif macroscopique..."
                       minHeightClass="min-h-[300px]"
                     />
@@ -587,6 +588,7 @@ export default function ReportDetailPage({
                       value={field.value ?? ""}
                       onChange={field.onChange}
                       disabled={!canEdit}
+                      dictation
                       placeholder="Saisir le récapitulatif microscopique..."
                       minHeightClass="min-h-[300px]"
                     />
@@ -639,6 +641,7 @@ export default function ReportDetailPage({
                         value={field.value ?? ""}
                         onChange={field.onChange}
                         disabled={!canEdit}
+                        dictation
                         placeholder="Récapitulatif complémentaire..."
                         minHeightClass="min-h-[200px]"
                       />
@@ -677,6 +680,7 @@ export default function ReportDetailPage({
                         value={field.value ?? ""}
                         onChange={field.onChange}
                         disabled={!canEdit}
+                        dictation
                         placeholder="Récapitulatif microscopique complémentaire..."
                         minHeightClass="min-h-[200px]"
                       />

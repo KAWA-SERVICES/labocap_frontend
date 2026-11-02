@@ -231,6 +231,10 @@ export const PERMISSIONS = {
   CREATE_REFUND_REASONS: "create-refund-reasons",
   EDIT_REFUND_REASONS: "edit-refund-reasons",
   DELETE_REFUND_REASONS: "delete-refund-reasons",
+
+  // Assistant IA
+  VIEW_ASSISTANT: "view-assistant",
+  MANAGE_ASSISTANT: "manage-assistant",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

@@ -27,6 +27,8 @@ const API_ERROR_MESSAGES: Record<string, string> = {
   REFUND_AMOUNT_EXCEEDS_INVOICE:
     "Le montant du remboursement dépasse le total de la facture.",
   TOKEN_PAYMENT_NOT_CONFIGURED: "Le paiement par jeton n'est pas configuré.",
+  DICTEE_QUOTA_ATTEINT:
+    "Quota mensuel de dictée atteint pour cette agence. Contactez l'administrateur.",
 };
 
 /**
