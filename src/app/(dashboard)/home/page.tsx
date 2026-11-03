@@ -46,6 +46,7 @@ import {
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { IconButton } from "@/components/ui/IconButton";
 import { RappelsPatients } from "@/components/dashboard/RappelsPatients";
+import { CreditMessagerie } from "@/components/dashboard/CreditMessagerie";
 
 import { usePermissions } from "@/hooks/usePermissions";
 import { cn, formatCFA, formatDate } from "@/lib/utils";
@@ -900,6 +901,9 @@ function TableauDeBord() {
 
       {/* Rappels automatiques : pour tout profil qui voit le tableau de bord. */}
       <RappelsPatients />
+
+      {/* Crédit SMS et appels (prépayé FluidChat) : solde et recharge, réservés à qui le gère. */}
+      {can(PERMISSIONS.MANAGE_MESSAGING_CREDIT) && <CreditMessagerie />}
 
       {/* ==================================================================
           LIGNE PLEINE LARGEUR — le travail du jour
