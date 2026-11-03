@@ -126,6 +126,9 @@ export function NativeSelect({
 
     const commonProps = {
       inputId: id,
+      // Sans lui, le libellé donné au select natif se perdait en mode enrichi :
+      // le champ de recherche n'avait plus de nom accessible.
+      "aria-label": props["aria-label"],
       name,
       options,
       value: selected,
