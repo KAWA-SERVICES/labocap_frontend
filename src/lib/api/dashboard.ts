@@ -1,5 +1,6 @@
 import apiClient from "./client";
 import type { IssueRappel } from "@/lib/rappel";
+import type { PlanCredit } from "@/lib/creditMessagerie";
 
 /**
  * `/dashboard/stats` — profil administrateur (`DashboardDto.AdminStats`).
@@ -157,6 +158,41 @@ export interface RappelsStats {
   reglagesManquants: string[];
 }
 
+/** Recharge Mobile Money du crédit SMS et appels (`/dashboard/credit-messagerie/recharges`). */
+export interface RechargeCredit {
+  id: number;
+  montantFcfa: number;
+  /** Mois de forfait achetés ; 0 pour une recharge de l'offre à l'unité. */
+  mois: number;
+  reseau: string;
+  statut: "pending" | "paid" | "failed";
+  motifEchec: string;
+  creeLe: string;
+  payeLe: string | null;
+}
+
+/** `/dashboard/credit-messagerie` — portefeuille prépayé tenu par FluidChat. */
+export interface CreditMessagerie {
+  plan: PlanCredit;
+  /** `null` quand le crédit n'est pas activé. */
+  soldeFcfa: number | null;
+  /** Date ISO de fin du forfait illimité, `null` sinon. */
+  illimiteJusquAu: string | null;
+  bas: boolean;
+  seuilBasFcfa: number;
+  prix: { smsPartFcfa: number; appelSecondeFcfa: number; forfaitMoisFcfa: number };
+  /** Consommation du mois civil en cours. */
+  mois: { sms: number; smsParts: number; smsFcfa: number; appelSecondes: number; appelFcfa: number };
+  rechargeEnCours: RechargeCredit | null;
+}
+
+export interface NouvelleRecharge {
+  montantFcfa?: number;
+  mois?: number;
+  reseau: "MTN" | "MOOV" | "CELTIIS";
+  telephone: string;
+}
+
 export const dashboardApi = {
   getStats: () => apiClient.get<AdminStats>("/dashboard/stats"),
   /**
@@ -180,4 +216,9 @@ export const dashboardApi = {
   /** Sans dates, l'API prend les 7 derniers jours. Dates au format `YYYY-MM-DD`. */
   getRappels: (params?: { dateBegin?: string; dateEnd?: string }) =>
     apiClient.get<RappelsStats>("/dashboard/rappels", { params }),
+  getCreditMessagerie: () => apiClient.get<CreditMessagerie>("/dashboard/credit-messagerie"),
+  rechargerCredit: (body: NouvelleRecharge) =>
+    apiClient.post<RechargeCredit>("/dashboard/credit-messagerie/recharges", body),
+  getRecharge: (id: number) =>
+    apiClient.get<RechargeCredit>(`/dashboard/credit-messagerie/recharges/${id}`),
 };
