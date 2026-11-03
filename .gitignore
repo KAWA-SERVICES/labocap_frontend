@@ -46,3 +46,11 @@ next-env.d.ts
 
 # Secrets locaux — ne doivent jamais partir sur le distant.
 password.txt
+
+# Claude Code — seuls les fichiers partagés de l'équipe sont versionnés
+.claude/*
+!.claude/settings.json
+!.claude/pipeline-profile.md
+!.claude/agents/
+!.claude/skills/
+__pycache__/

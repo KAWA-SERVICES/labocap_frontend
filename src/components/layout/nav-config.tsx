@@ -22,6 +22,7 @@ import {
   Syringe,
   BarChart3,
   ScrollText,
+  MessageSquare,
 } from "lucide-react";
 import { PERMISSIONS, type Permission } from "@/lib/constants/permissions";
 import type { AppModule } from "@/lib/modules";
@@ -358,6 +359,15 @@ export const NAV: NavSection[] = [
         label: "Journal d'accès",
         icon: <ScrollText className="w-5 h-5" />,
         gate: { permission: PERMISSIONS.VIEW_AUDIT },
+      },
+
+      // Assistant IA : fournisseur, clé, masquage, quota
+      {
+        kind: "link",
+        href: "/settings/assistant",
+        label: "Assistant IA",
+        icon: <MessageSquare className="w-5 h-5" />,
+        gate: { permission: PERMISSIONS.MANAGE_ASSISTANT },
       },
 
       // Paramètres

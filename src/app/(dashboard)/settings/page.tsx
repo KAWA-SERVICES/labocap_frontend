@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   Building2,
@@ -19,6 +20,7 @@ import {
   ChevronRight,
   Settings as SettingsIcon,
   Image as ImageIcon,
+  PhoneCall,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -50,6 +52,7 @@ import {
   type SettingInvoice,
 } from "@/lib/api/settingInvoices";
 import { INPUT_CLASS as inputClass } from "@/lib/ui/inputClass";
+import { JOURS_RAPPEL, ecrireJours, lireJours } from "@/lib/rappel";
 
 // ---------------------------------------------------------------------------
 // Style partagé
@@ -63,7 +66,7 @@ import { INPUT_CLASS as inputClass } from "@/lib/ui/inputClass";
 type FieldDef = {
   key: string;
   label: string;
-  type?: "text" | "email" | "textarea" | "password" | "number" | "select" | "image";
+  type?: "text" | "email" | "textarea" | "password" | "number" | "time" | "url" | "select" | "image";
   full?: boolean;
   placeholder?: string;
   options?: { value: string; label: string }[];
@@ -171,9 +174,45 @@ const REPORT_FIELDS: FieldDef[] = [
   },
 ];
 
+// Onglet Rappel des patients — lus par l'API (`ReglagesDeRappel`, `SmsTemplates`).
+// Une clé vide ou illisible y retombe sur le défaut : rien ici ne peut bloquer
+// les rappels ni faire sonner un téléphone hors de la plage réglementaire.
+const RAPPEL_FIELDS: FieldDef[] = [
+  {
+    key: "rappel_delai_heures",
+    label: "Délai après validation (heures)",
+    type: "number",
+    help: "Temps laissé entre la validation du compte rendu et l'appel automatique du patient.",
+  },
+  {
+    key: "rappel_numero",
+    label: "Numéro qui appellera",
+    placeholder: "Ex : 0197000000",
+    help: "Affiché dans le SMS de facture pour que le patient l'enregistre et décroche à l'appel.",
+  },
+  { key: "rappel_heure_debut", label: "Appels à partir de", type: "time" },
+  { key: "rappel_heure_fin", label: "Appels jusqu'à", type: "time" },
+];
+
+// Pas d'audio par défaut côté API : une clé vide, c'est aucun appel pour ce cas.
+const AUDIO_PLACEHOLDER = "https://…/message.mp3";
+const RAPPEL_AUDIO_FIELDS: FieldDef[] = [
+  { key: "fluidchat_audio_fr", label: "Audio du rappel — français", type: "url", placeholder: AUDIO_PLACEHOLDER, help: "Vide : aucun appel pour les patients de langue française." },
+  { key: "fluidchat_audio_fon", label: "Audio du rappel — fon", type: "url", placeholder: AUDIO_PLACEHOLDER, help: "Vide : aucun appel pour les patients de langue fon." },
+  { key: "fluidchat_audio_en", label: "Audio du rappel — anglais", type: "url", placeholder: AUDIO_PLACEHOLDER, help: "Vide : aucun appel pour les patients de langue anglaise." },
+  { key: "fluidchat_audio_bip", label: "Audio si le patient décroche au bip de facture", type: "url", placeholder: AUDIO_PLACEHOLDER, help: "Vide : aucun bip à la facture." },
+];
+
+const RAPPEL_TAB = "rappel";
+
 // Valeurs par défaut proposées quand aucune valeur n'est encore enregistrée.
+// Celles du rappel sont les défauts de l'API : les afficher dit ce qui s'applique.
 const FIELD_DEFAULTS: Record<string, string> = {
   report_footer: DEFAULT_REPORT_FOOTER,
+  rappel_delai_heures: "24",
+  rappel_heure_debut: "08:00",
+  rappel_heure_fin: "18:00",
+  rappel_jours: "1,2,3,4,5",
 };
 
 // Toutes les clés « texte » gérées par la page (pour le chargement initial)
@@ -183,6 +222,9 @@ const ALL_KV_FIELDS = [
   ...EMAIL_FIELDS,
   ...SMS_FIELDS,
   ...REPORT_FIELDS,
+  ...RAPPEL_FIELDS,
+  ...RAPPEL_AUDIO_FIELDS,
+  { key: "rappel_jours" } as FieldDef,
   { key: "token_payment" } as FieldDef,
   { key: "services" } as FieldDef,
 ];
@@ -195,6 +237,7 @@ type TabKey =
   | "general"
   | "email"
   | "sms"
+  | "rappel"
   | "report"
   | "banks"
   | "payment"
@@ -204,6 +247,7 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "general", label: "Général", icon: <Building2 className="h-4 w-4" /> },
   { key: "email", label: "Email", icon: <Mail className="h-4 w-4" /> },
   { key: "sms", label: "Communication Mobile", icon: <Smartphone className="h-4 w-4" /> },
+  { key: "rappel", label: "Rappel des patients", icon: <PhoneCall className="h-4 w-4" /> },
   { key: "report", label: "Compte rendu", icon: <FileText className="h-4 w-4" /> },
   { key: "banks", label: "Banques", icon: <Landmark className="h-4 w-4" /> },
   { key: "payment", label: "Paramètres de paiements", icon: <CreditCard className="h-4 w-4" /> },
@@ -219,7 +263,11 @@ export default function SettingsPage() {
   const queryClient = useQueryClient();
   const canManage = can(PERMISSIONS.MANAGE_SETTINGS);
 
-  const [tab, setTab] = useState<TabKey>("general");
+  // `?tab=rappel` : lien direct du bandeau « Rappel automatique incomplet ».
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<TabKey>(() =>
+    searchParams.get("tab") === RAPPEL_TAB ? RAPPEL_TAB : "general",
+  );
   const [generalSub, setGeneralSub] = useState<"general" | "logos">("general");
   const [reportSub, setReportSub] = useState<"general" | "titles">("general");
 
@@ -264,6 +312,8 @@ export default function SettingsPage() {
       // cette invalidation, une valeur enregistrée ici n'apparaissait qu'après
       // un rechargement complet — l'utilisateur croyait la sauvegarde perdue.
       queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+      // Un audio renseigné peut lever le bandeau « Rappel automatique incomplet ».
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "rappels"] });
       toast.success("Paramètres sauvegardés");
     },
     onError: () => toast.error("Erreur lors de la sauvegarde"),
@@ -443,6 +493,60 @@ export default function SettingsPage() {
                   show={canManage}
                   pending={saveMutation.isPending}
                   onSave={() => saveMutation.mutate(SMS_FIELDS.map((f) => f.key))}
+                />
+              </Card>
+            )}
+
+            {/* ---- Rappel des patients (appel automatique FluidChat) ---- */}
+            {tab === "rappel" && (
+              <Card
+                title="Rappel des patients"
+                subtitle="Appel automatique du patient quand son résultat est disponible : délai, plage d'appel et messages vocaux."
+              >
+                <p className="mb-4 text-xs text-gray-500">
+                  Réglages communs au laboratoire : la dernière valeur enregistrée, depuis
+                  n&apos;importe quelle agence, s&apos;applique partout.
+                </p>
+                <FieldsGrid
+                  fields={RAPPEL_FIELDS}
+                  values={values}
+                  onChange={setValue}
+                  disabled={!canManage}
+                />
+                <div className="mt-4">
+                  <p className="mb-2 text-sm font-medium text-gray-700">Jours d&apos;appel</p>
+                  <JoursCheckboxes
+                    value={values["rappel_jours"] ?? ""}
+                    onChange={(v) => setValue("rappel_jours", v)}
+                    disabled={!canManage}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Aucun jour coché : du lundi au vendredi.
+                  </p>
+                </div>
+                <div className="mt-6 border-t border-gray-100 pt-5">
+                  <p className="text-sm font-medium text-gray-700">Messages vocaux</p>
+                  <p className="mb-4 mt-1 text-xs text-gray-500">
+                    Liens vers un fichier audio mp3, joués à l&apos;appel du patient selon sa
+                    langue, ou s&apos;il décroche pendant le bip de la facture.
+                  </p>
+                  <FieldsGrid
+                    fields={RAPPEL_AUDIO_FIELDS}
+                    values={values}
+                    onChange={setValue}
+                    disabled={!canManage}
+                  />
+                </div>
+                <SaveBar
+                  show={canManage}
+                  pending={saveMutation.isPending}
+                  onSave={() =>
+                    saveMutation.mutate([
+                      ...RAPPEL_FIELDS.map((f) => f.key),
+                      ...RAPPEL_AUDIO_FIELDS.map((f) => f.key),
+                      "rappel_jours",
+                    ])
+                  }
                 />
               </Card>
             )}
@@ -705,6 +809,50 @@ function ServicesCheckboxes({
               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
             {s.label}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+function JoursCheckboxes({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const selected = lireJours(value);
+  const toggle = (jour: number) => {
+    const next = new Set(selected);
+    if (next.has(jour)) next.delete(jour);
+    else next.add(jour);
+    onChange(ecrireJours(next));
+  };
+  return (
+    <div className="flex flex-wrap gap-2">
+      {JOURS_RAPPEL.map((j) => {
+        const on = selected.has(j.value);
+        return (
+          <label
+            key={j.value}
+            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-[.9rem] transition-colors ${
+              on
+                ? "border-blue-300 bg-blue-50 text-blue-700"
+                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+            } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+          >
+            <input
+              type="checkbox"
+              checked={on}
+              onChange={() => toggle(j.value)}
+              disabled={disabled}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            {j.label}
           </label>
         );
       })}

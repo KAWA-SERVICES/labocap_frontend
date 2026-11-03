@@ -4,11 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AxiosError } from "axios";
-import { MessageSquare, Phone } from "lucide-react";
+import { Loader2, MessageSquare, Phone } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { NativeSelect } from "@/components/ui/NativeSelect";
+import { Badge } from "@/components/ui/Badge";
 import { CrudModal } from "@/components/common/CrudModal";
 import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { SignaturePad, type SignaturePadHandle } from "@/components/common/SignaturePad";
@@ -23,6 +25,14 @@ import { typeOrdersApi, type TypeOrder } from "@/lib/api/examens";
 import type { ApiError, PageResponse } from "@/types/api";
 import { cn } from "@/lib/utils";
 import { sanitize } from "@/lib/sanitize";
+import {
+  A_RAPPELER,
+  ISSUES_RAPPEL,
+  badgeRappel,
+  detailRappel,
+  estProgramme,
+  intervalleSuiviAppel,
+} from "@/lib/rappel";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,6 +53,12 @@ const PRIORITY_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Tous" },
   { value: "Urgent", label: "Urgent" },
   { value: "Retard", label: "En retard" },
+];
+
+const RAPPEL_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "Tous" },
+  { value: A_RAPPELER, label: "À rappeler" },
+  ...ISSUES_RAPPEL.map((i) => ({ value: i.value, label: i.label })),
 ];
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -161,33 +177,72 @@ interface CallCellProps {
 
 function CallCell({ row, onMarkInformed, onNotify }: CallCellProps) {
   const { can } = usePermissions();
+  const queryClient = useQueryClient();
   const phone = row.patientPhone ?? "";
   const reportTerminated =
     row.reportStatus === "VALIDATED" || row.reportStatus === "DELIVERED";
 
-  // Appel vocal / SMS OurVoice : nécessite la permission, un CR terminé et un téléphone.
-  //
-  // La permission lue est celle de la remise, non celle de la rédaction : prévenir
-  // un patient que son résultat l'attend relève du guichet, et c'est ce que le
-  // serveur exige désormais sur ces routes. Lire `edit-reports` ici afficherait le
-  // bouton à un rédacteur qui n'a pas le droit de s'en servir.
-  const canNotify =
-    can(PERMISSIONS.DELIVER_REPORTS) && reportTerminated && !!phone && !!row.reportId;
+  // Prévenir le patient (appel, SMS, « informé ») relève du guichet : le serveur
+  // exige `deliver-reports` sur `/call`, `/sms`, `/notify` et `/informed-patient`.
+  // Il faut aussi un compte rendu terminé et un téléphone.
+  const canDeliver = can(PERMISSIONS.DELIVER_REPORTS);
+  const canNotify = canDeliver && reportTerminated && !!phone && !!row.reportId;
 
-  // Un seul bouton : c'est le serveur qui choisit le canal, comme l'action
-  // Laravel `callOrSendSms` (SMS si le bon porte l'option, sinon appel vocal et
-  // seulement entre 8h et 18h). Deux boutons distincts laissaient l'utilisateur
-  // contourner cette règle et déclencher un appel en pleine nuit.
+  // Un seul bouton : le serveur envoie le SMS et programme l'appel automatique,
+  // qui ne sonne que dans la plage paramétrée (jours et heures de rappel).
   const actions = canNotify ? (
     <button
       type="button"
       onClick={() => onNotify(row)}
-      title="Prévenir le patient (SMS ou appel vocal selon le bon)"
+      title="Prévenir le patient (SMS et appel automatique)"
       className="inline-flex items-center justify-center gap-1 rounded p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-blue-600"
     >
       <Phone className="h-3.5 w-3.5" />
       <MessageSquare className="h-3.5 w-3.5" />
     </button>
+  ) : null;
+
+  // Suivi en direct du dernier appel : lancé ici, ou déjà en cours au chargement.
+  const [lance, setLance] = useState(false);
+  const suivi = lance || row.rappelIssue === "EN_COURS";
+  const appelKey = ["report-appel", row.reportId];
+  const { data: releve } = useQuery({
+    queryKey: appelKey,
+    queryFn: async () => {
+      const statut = (await reportsApi.getAppelStatus(row.reportId)).data;
+      // Appel terminé : l'API a pu marquer le patient informé (JOINT). La liste
+      // et le bandeau se relisent pour afficher « Oui » et le bon compteur.
+      if (statut?.issue && statut.issue !== "EN_COURS") {
+        queryClient.invalidateQueries({ queryKey: ["reports-suivi-list"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "rappels"] });
+      }
+      return statut;
+    },
+    enabled: suivi && !!row.reportId,
+    // Arrêté au démontage et quand l'onglet est masqué (défaut de react-query).
+    refetchInterval: (q) => intervalleSuiviAppel(q.state.data),
+    retry: false,
+  });
+
+  // `/call` et non `/notify` : l'appel seul, sans SMS.
+  const callMutation = useMutation({
+    mutationFn: () => reportsApi.callPatient(row.reportId),
+    onSuccess: () => {
+      toast.success("Appel lancé");
+      // Repart d'un relevé vide : « Appel en cours… » et cadence de 5 s, même
+      // si un appel précédent de cette ligne avait déjà une issue.
+      queryClient.resetQueries({ queryKey: appelKey });
+      setLance(true);
+    },
+    onError: (err: AxiosError<ApiError>) => {
+      toast.error(err.response?.data?.message ?? "Erreur lors du lancement de l'appel");
+    },
+  });
+  const enCours = suivi && (!releve || releve.issue === "EN_COURS");
+  const canCall = canNotify && !enCours;
+
+  const phoneLine = phone ? (
+    <small className="text-[11px] font-semibold uppercase text-gray-500">{phone}</small>
   ) : null;
 
   if (row.isCalled) {
@@ -196,36 +251,96 @@ function CallCell({ row, onMarkInformed, onNotify }: CallCellProps) {
         <span className="inline-flex w-fit items-center rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white">
           Oui
         </span>
-        {phone ? (
-          <small className="text-[11px] font-semibold uppercase text-gray-500">
-            {phone}
-          </small>
-        ) : null}
+        {phoneLine}
         {actions}
       </div>
     );
   }
+
+  let etatAppel: React.ReactNode = null;
+  if (suivi) {
+    if (enCours) {
+      etatAppel = estProgramme(releve) ? (
+        <Badge variant="info" className="w-fit">
+          Programmé
+        </Badge>
+      ) : (
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          Appel en cours…
+          {releve?.attempts ? (
+            <span className="text-gray-500">
+              (tentative {releve.attempts})
+            </span>
+          ) : null}
+        </span>
+      );
+    } else if (releve) {
+      const { label, variant } = badgeRappel(releve.issue);
+      etatAppel = (
+        <div className="flex flex-col gap-0.5">
+          <Badge variant={variant} className="w-fit">
+            {label}
+          </Badge>
+          {releve.listenedPct != null ? (
+            <small className="text-[11px] text-gray-500">
+              {releve.listenedPct} % écouté
+            </small>
+          ) : null}
+        </div>
+      );
+    }
+  }
+
   return (
     <div className="flex flex-col gap-1">
-      <button
-        type="button"
-        onClick={() => onMarkInformed(row)}
-        disabled={!reportTerminated}
-        className={cn(
-          "inline-flex w-fit items-center rounded-md px-3 py-1 text-xs font-medium text-white transition-colors",
-          reportTerminated
-            ? "bg-red-600 hover:bg-red-700"
-            : "cursor-not-allowed bg-red-300",
-        )}
-      >
-        Non
-      </button>
-      {phone ? (
-        <small className="text-[11px] font-semibold uppercase text-gray-500">
-          {phone}
-        </small>
+      {etatAppel}
+      {canCall ? (
+        <Button
+          size="sm"
+          className="w-fit"
+          icon={<Phone className="h-3.5 w-3.5" />}
+          loading={callMutation.isPending}
+          onClick={() => callMutation.mutate()}
+        >
+          Appeler
+        </Button>
+      ) : etatAppel ? null : (
+        <span
+          className={cn(
+            "inline-flex w-fit items-center rounded-md px-3 py-1 text-xs font-medium text-white",
+            reportTerminated ? "bg-red-600" : "bg-red-300",
+          )}
+        >
+          Non
+        </span>
+      )}
+      {phoneLine}
+      {/* Action secondaire : patient prévenu au guichet ou par téléphone. */}
+      {reportTerminated ? (
+        <button
+          type="button"
+          onClick={() => onMarkInformed(row)}
+          className="w-fit text-[11px] text-gray-500 underline-offset-2 hover:text-blue-600 hover:underline"
+        >
+          Marquer informé
+        </button>
       ) : null}
       {actions}
+    </div>
+  );
+}
+
+/** Issue du rappel automatique ; le détail (tentatives, part écoutée, date) en sous-texte. */
+function RappelCell({ row }: { row: ReportSuiviRow }) {
+  const { label, variant } = badgeRappel(row.rappelIssue);
+  const detail = detailRappel(row);
+  return (
+    <div className="flex flex-col gap-1">
+      <Badge variant={variant} className="w-fit">
+        {label}
+      </Badge>
+      {detail ? <small className="text-[11px] text-gray-500">{detail}</small> : null}
     </div>
   );
 }
@@ -734,6 +849,8 @@ interface DemandesTabProps {
   setDateBegin: (v: string) => void;
   dateEnd: string;
   setDateEnd: (v: string) => void;
+  rappel: string;
+  setRappel: (v: string) => void;
   page: number;
   setPage: (v: number) => void;
   pageSize: number;
@@ -761,6 +878,8 @@ function DemandesTab({
   setDateBegin,
   dateEnd,
   setDateEnd,
+  rappel,
+  setRappel,
   page,
   setPage,
   pageSize,
@@ -900,6 +1019,25 @@ function DemandesTab({
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-[.9rem] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
+          <div>
+            <label
+              htmlFor="filter-rappel"
+              className="mb-1 block text-xs font-medium text-gray-600"
+            >
+              Rappel
+            </label>
+            <NativeSelect
+              id="filter-rappel"
+              value={rappel}
+              onChange={(e) => handleFilterChange(() => setRappel(e.target.value))}
+            >
+              {RAPPEL_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
         </div>
       </div>
 
@@ -925,6 +1063,9 @@ function DemandesTab({
                   Patient informé
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-800">
+                  Rappel
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-800">
                   Patient livré
                 </th>
               </tr>
@@ -933,7 +1074,7 @@ function DemandesTab({
               {isLoading ? (
                 Array.from({ length: Math.min(pageSize, 10) }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 6 }).map((__, j) => (
+                    {Array.from({ length: 7 }).map((__, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-4 animate-pulse rounded bg-gray-200" />
                       </td>
@@ -943,7 +1084,7 @@ function DemandesTab({
               ) : isError ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-sm text-red-600"
                   >
                     Erreur lors du chargement des demandes. Vérifiez que
@@ -953,7 +1094,7 @@ function DemandesTab({
               ) : rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-sm text-gray-500"
                   >
                     Aucune demande trouvée
@@ -993,6 +1134,9 @@ function DemandesTab({
                         onMarkInformed={onMarkInformed}
                         onNotify={onNotify}
                       />
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <RappelCell row={row} />
                     </td>
                     <td className="px-4 py-3 align-top">
                       <DeliveryCell
@@ -1075,6 +1219,19 @@ export default function ReportsSuiviPage() {
   const [typeOrderId, setTypeOrderId] = useState("");
   const [dateBegin, setDateBegin] = useState("");
   const [dateEnd, setDateEnd] = useState("");
+  // Le filtre « Rappel » vit dans l'URL (`?rappel=A_RAPPELER`) : le bandeau et
+  // le tableau de bord y renvoient directement.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const rappel = searchParams.get("rappel") ?? "";
+  const setRappel = (v: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (v) next.set("rappel", v);
+    else next.delete("rappel");
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
 
@@ -1116,8 +1273,9 @@ export default function ReportsSuiviPage() {
     if (dateEnd) params.dateEnd = dateEnd;
     if (priority === "Urgent") params.isUrgent = true;
     if (priority === "Retard") params.isLate = true;
+    if (rappel) params.rappel = rappel;
     return params;
-  }, [page, pageSize, debouncedSearch, status, typeOrderId, dateBegin, dateEnd, priority]);
+  }, [page, pageSize, debouncedSearch, status, typeOrderId, dateBegin, dateEnd, priority, rappel]);
 
   const listQuery = useQuery<PageResponse<ReportSuiviRow>>({
     queryKey: ["reports-suivi-list", listParams],
@@ -1145,6 +1303,8 @@ export default function ReportsSuiviPage() {
       setInformRow(null);
       queryClient.invalidateQueries({ queryKey: ["reports-suivi-list"] });
       queryClient.invalidateQueries({ queryKey: ["reports-suivi-stats"] });
+      // Un patient informé sort des « à rappeler » : le bandeau doit suivre.
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "rappels"] });
     },
     onError: (err: AxiosError<ApiError>) => {
       toast.error(
@@ -1153,9 +1313,8 @@ export default function ReportsSuiviPage() {
     },
   });
 
-  // Notification du patient : le canal est décidé côté serveur (SMS si le bon
-  // porte l'option, sinon appel vocal dans la plage 8h–18h), comme l'action
-  // Laravel `callOrSendSms`. La réponse dit ce qui a réellement été fait.
+  // Notification du patient : SMS puis appel automatique, décidés côté serveur.
+  // La réponse dit ce qui a réellement été fait.
   const notifyMutation = useMutation({
     mutationFn: (reportId: string) => reportsApi.notifyPatient(reportId),
     onSuccess: (res) => {
@@ -1163,6 +1322,7 @@ export default function ReportsSuiviPage() {
       if (data?.channel === "NONE") toast.warning(data.message);
       else toast.success(data?.message ?? "Patient notifié");
       queryClient.invalidateQueries({ queryKey: ["reports-suivi-list"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "rappels"] });
     },
     onError: (err: AxiosError<ApiError>) => {
       toast.error(
@@ -1184,6 +1344,7 @@ export default function ReportsSuiviPage() {
       setSignatureRow(null);
       queryClient.invalidateQueries({ queryKey: ["reports-suivi-list"] });
       queryClient.invalidateQueries({ queryKey: ["reports-suivi-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "rappels"] });
     },
     onError: (err: AxiosError<ApiError>) => {
       toast.error(
@@ -1219,6 +1380,8 @@ export default function ReportsSuiviPage() {
           setDateBegin={setDateBegin}
           dateEnd={dateEnd}
           setDateEnd={setDateEnd}
+          rappel={rappel}
+          setRappel={setRappel}
           page={page}
           setPage={setPage}
           pageSize={pageSize}

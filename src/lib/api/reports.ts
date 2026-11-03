@@ -1,5 +1,6 @@
 import apiClient from "./client";
 import type { PageResponse } from "@/types/api";
+import type { IssueRappel } from "@/lib/rappel";
 
 export type ReportStatus = "DRAFT" | "PENDING_REVIEW" | "VALIDATED" | "DELIVERED";
 
@@ -173,6 +174,25 @@ export interface ReportSuiviRow {
   retrieverName?: string;
   retrieverSignature?: string;
   deliveryDate?: string;
+  /** Issue du dernier rappel automatique ; nulle tant qu'aucun rappel n'est parti. */
+  rappelIssue: IssueRappel | null;
+  rappelTentatives: number | null;
+  /** Part de l'audio écoutée, en %. */
+  rappelPctEcoute: number | null;
+  /** Date du dernier appel. */
+  rappelDate: string | null;
+}
+
+/** `GET /reports/{id}/appel` ; issue et suite nulles pour un appel d'avant FluidChat. */
+export interface AppelStatut {
+  id: string;
+  reportId: string;
+  appelId: string;
+  createdAt: string;
+  issue: IssueRappel | null;
+  result: string | null;
+  listenedPct: number | null;
+  attempts: number | null;
 }
 
 export interface ReportSuiviListParams {
@@ -187,6 +207,8 @@ export interface ReportSuiviListParams {
   isUrgent?: boolean;
   /** En retard : report DRAFT créé il y a plus de 21 jours */
   isLate?: boolean;
+  /** `A_RAPPELER` ou une issue exacte ; toute autre valeur → 422. */
+  rappel?: string;
 }
 
 /**
@@ -306,7 +328,10 @@ export const reportsApi = {
   informedPatient: (id: string) =>
     apiClient.patch(`/reports/${id}/informed-patient`),
 
-  /** Lance l'appel vocal OurVoice au patient (résultat disponible). */
+  /**
+   * Lance l'appel automatique au patient (résultat disponible), sans SMS.
+   * 422 si un appel est déjà en cours ou si l'audio de sa langue manque.
+   */
   callPatient: (id: string) =>
     apiClient.post<{ appelId: string; reportId: string; audioUrl: string }>(
       `/reports/${id}/call`
@@ -317,9 +342,8 @@ export const reportsApi = {
     apiClient.post<{ status: string }>(`/reports/${id}/sms`),
 
   /**
-   * Prévient le patient en laissant le serveur choisir le canal — réplique de
-   * l'action Laravel `report.callOrSendSms` : SMS si le bon d'examen porte
-   * l'option, sinon appel vocal et uniquement entre 8h et 18h.
+   * Prévient le patient : SMS puis appel automatique (programmé dans la plage
+   * de rappel paramétrée). `NONE` : aucun numéro, le secrétariat doit le prévenir.
    */
   notifyPatient: (id: string) =>
     apiClient.post<{
@@ -329,11 +353,9 @@ export const reportsApi = {
       message: string;
     }>(`/reports/${id}/notify`),
 
-  /** Statut du dernier appel passé pour ce compte-rendu. */
+  /** Dernier appel du compte rendu ; l'API relit FluidChat à chaque lecture. */
   getAppelStatus: (id: string) =>
-    apiClient.get<{ id: string; reportId: string; appelId: string; createdAt: string }>(
-      `/reports/${id}/appel`
-    ),
+    apiClient.get<AppelStatut>(`/reports/${id}/appel`),
 
   getSuivi: (params?: { year?: number; month?: number }) =>
     apiClient.get<ReportSuivi>("/reports/suivi", { params }),

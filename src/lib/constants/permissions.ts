@@ -153,6 +153,8 @@ export const PERMISSIONS = {
   VIEW_SECRETARIAT_DASHBOARD: "view-secretariat-dashboard",
   VIEW_PATHOLOGIST_DASHBOARD: "view-pathologist-dashboard",
   VIEW_DASHBORD_FINANCE: "view-dashbord-finance",
+  /** Tuile « Crédit SMS et appels » : solde, consommation et recharge Mobile Money. */
+  MANAGE_MESSAGING_CREDIT: "manage-messaging-credit",
 
   // Settings / Admin (granular)
   VIEW_SETTING_INVOICE: "view-setting-invoice",
@@ -231,6 +233,10 @@ export const PERMISSIONS = {
   CREATE_REFUND_REASONS: "create-refund-reasons",
   EDIT_REFUND_REASONS: "edit-refund-reasons",
   DELETE_REFUND_REASONS: "delete-refund-reasons",
+
+  // Assistant IA
+  VIEW_ASSISTANT: "view-assistant",
+  MANAGE_ASSISTANT: "manage-assistant",
 } as const;
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

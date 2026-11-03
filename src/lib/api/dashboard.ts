@@ -1,4 +1,6 @@
 import apiClient from "./client";
+import type { IssueRappel } from "@/lib/rappel";
+import type { MouvementCredit, PlanCredit } from "@/lib/creditMessagerie";
 
 /**
  * `/dashboard/stats` — profil administrateur (`DashboardDto.AdminStats`).
@@ -143,6 +145,54 @@ export interface DoctorOrder {
   reportStatus: number; // 0 = en attente, 1 = terminé
 }
 
+/** `/dashboard/rappels` — rappels automatiques des patients (`DashboardDto.Rappels`). */
+export interface RappelsStats {
+  /** Dernier rappel de chaque compte rendu sur la période, par issue (toutes les issues présentes). */
+  parIssue: Record<IssueRappel, number>;
+  /** Patients non joints, ni marqués informés, ni venus chercher le résultat — toutes dates. */
+  aRappeler: number;
+  /**
+   * Ce qui empêche des appels de partir : `fluidchat_api` (serveur) ou une clé
+   * audio `fluidchat_audio_*` vide. Vide si tout est prêt.
+   */
+  reglagesManquants: string[];
+}
+
+/** Recharge Mobile Money du crédit SMS et appels (`/dashboard/credit-messagerie/recharges`). */
+export interface RechargeCredit {
+  id: number;
+  montantFcfa: number;
+  /** Mois de forfait achetés ; 0 pour une recharge de l'offre à l'unité. */
+  mois: number;
+  reseau: string;
+  statut: "pending" | "paid" | "failed";
+  motifEchec: string;
+  creeLe: string;
+  payeLe: string | null;
+}
+
+/** `/dashboard/credit-messagerie` — portefeuille prépayé tenu par FluidChat. */
+export interface CreditMessagerie {
+  plan: PlanCredit;
+  /** `null` quand le crédit n'est pas activé. */
+  soldeFcfa: number | null;
+  /** Date ISO de fin du forfait illimité, `null` sinon. */
+  illimiteJusquAu: string | null;
+  bas: boolean;
+  seuilBasFcfa: number;
+  prix: { smsPartFcfa: number; appelSecondeFcfa: number; forfaitMoisFcfa: number };
+  /** Consommation du mois civil en cours. */
+  mois: { sms: number; smsParts: number; smsFcfa: number; appelSecondes: number; appelFcfa: number };
+  rechargeEnCours: RechargeCredit | null;
+}
+
+export interface NouvelleRecharge {
+  montantFcfa?: number;
+  mois?: number;
+  reseau: "MTN" | "MOOV" | "CELTIIS";
+  telephone: string;
+}
+
 export const dashboardApi = {
   getStats: () => apiClient.get<AdminStats>("/dashboard/stats"),
   /**
@@ -163,4 +213,15 @@ export const dashboardApi = {
   getDoctorAppointments: () => apiClient.get<AppointmentItem[]>("/dashboard/doctor/appointments"),
   getDoctorOrders: () => apiClient.get<DoctorOrder[]>("/dashboard/doctor/orders"),
   getDoctorOrdersToday: () => apiClient.get<DoctorOrder[]>("/dashboard/doctor/orders-today"),
+  /** Sans dates, l'API prend les 7 derniers jours. Dates au format `YYYY-MM-DD`. */
+  getRappels: (params?: { dateBegin?: string; dateEnd?: string }) =>
+    apiClient.get<RappelsStats>("/dashboard/rappels", { params }),
+  getCreditMessagerie: () => apiClient.get<CreditMessagerie>("/dashboard/credit-messagerie"),
+  rechargerCredit: (body: NouvelleRecharge) =>
+    apiClient.post<RechargeCredit>("/dashboard/credit-messagerie/recharges", body),
+  getRecharge: (id: number) =>
+    apiClient.get<RechargeCredit>(`/dashboard/credit-messagerie/recharges/${id}`),
+  /** Registre du crédit d'un mois `AAAA-MM`, du plus récent au plus ancien. */
+  getMouvementsCredit: (mois: string) =>
+    apiClient.get<MouvementCredit[]>("/dashboard/credit-messagerie/mouvements", { params: { mois } }),
 };

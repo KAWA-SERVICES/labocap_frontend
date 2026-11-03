@@ -7,6 +7,8 @@ import { TimeoffRequestModal } from "@/components/hr/TimeoffRequestModal";
 import { HyperTooltip } from "@/components/common/HyperTooltip";
 import { AutoPlaceholders } from "@/components/common/AutoPlaceholders";
 import { VeilleDeSession } from "@/components/layout/VeilleDeSession";
+import { BandeauRappels } from "@/components/layout/BandeauRappels";
+import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { ModulesProvider } from "@/components/providers/ModulesProvider";
 import { getEnabledModules } from "@/lib/modules";
 import { connection } from "next/server";
@@ -38,12 +40,16 @@ export default async function DashboardLayout({
               <Topbar />
             </div>
             <main className="flex-1 overflow-y-auto p-6 print:overflow-visible print:p-0">
+              <BandeauRappels />
               {children}
             </main>
             <div className="print:hidden">
               <Footer />
             </div>
           </div>
+          {/* Assistant IA : docké à droite, hors des pages pour survivre à la
+              navigation (il ouvre un compte rendu sans perdre la conversation). */}
+          <AssistantPanel />
         </div>
         {/* Ferme la session après quinze minutes sans activité, et le dit une
             minute avant plutôt que de la laisser tomber en pleine rédaction. */}

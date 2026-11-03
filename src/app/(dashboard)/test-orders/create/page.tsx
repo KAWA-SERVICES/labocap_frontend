@@ -37,6 +37,7 @@ import type { ApiError as ApiErrorType } from "@/types/api";
 import apiClient from "@/lib/api/client";
 import { generatePatientCode } from "@/lib/utils";
 import { INPUT_CLASS as inputClass } from "@/lib/ui/inputClass";
+import { LANGUE_OPTIONS, LANGUE_PAR_DEFAUT } from "@/lib/constants/patient";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,6 +101,7 @@ const quickPatientSchema = z.object({
   genre: z.enum(["M", "F"]).optional(),
   age: z.string().optional(),
   yearOrMonth: z.boolean().optional(),
+  langue: z.string().optional(),
   // Facultatif et sans format imposé, à la demande du client (cf. le formulaire
   // patient, qui porte la même règle). Ni le backend ni la base ne l'exigeaient.
   telephone1: z.string().optional(),
@@ -186,6 +188,7 @@ export default function TestOrderCreatePage() {
     resolver: zodResolver(quickPatientSchema),
     defaultValues: {
       yearOrMonth: true,
+      langue: LANGUE_PAR_DEFAUT,
     },
   });
 
@@ -358,7 +361,7 @@ export default function TestOrderCreatePage() {
       firstname: data.firstname,
       lastname: data.lastname,
       genre: data.genre ?? "M",
-      langue: "fr",
+      langue: data.langue || LANGUE_PAR_DEFAUT,
       // Champ vide → absent du payload, comme `telephone2` plus bas : on
       // enregistre l'absence de numéro, pas une chaîne vide.
       telephone1: data.telephone1 || undefined,
@@ -829,6 +832,26 @@ export default function TestOrderCreatePage() {
                   <option value="">Sélectionner...</option>
                   <option value="M">Masculin</option>
                   <option value="F">Féminin</option>
+                </NativeSelect>
+              )}
+            />
+          </FormField>
+
+          {/* Langue : choisit le message de l'appel vocal « résultat disponible ». */}
+          <FormField label="Langue" error={patientErrors.langue?.message}>
+            <Controller
+              name="langue"
+              control={controlPatient}
+              render={({ field }) => (
+                <NativeSelect
+                  value={field.value ?? LANGUE_PAR_DEFAUT}
+                  onChange={(e) => field.onChange(e.target.value)}
+                >
+                  {LANGUE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </NativeSelect>
               )}
             />
