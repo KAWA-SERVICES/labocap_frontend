@@ -6,6 +6,12 @@ import {
   libelleOffre,
   moisProposes,
   montantForfait,
+  derniersMois,
+  detailMouvement,
+  libelleMouvement,
+  mouvementsCsv,
+  totauxMois,
+  type MouvementCredit,
 } from "./creditMessagerie";
 
 describe("erreurMontant", () => {
@@ -56,5 +62,37 @@ describe("libelleOffre", () => {
     expect(libelleOffre("unit")).toBe("À l'unité");
     expect(libelleOffre("unlimited")).toBe("Forfait illimité");
     expect(libelleOffre("none")).toBe("Non activé");
+  });
+});
+
+describe("historique du crédit", () => {
+  const l = (p: Partial<MouvementCredit>): MouvementCredit => ({
+    id: 1, type: "sms", montantFcfa: -24, unites: 1, note: "", soldeApres: 0, le: "2026-11-03T08:00:00Z", ...p,
+  });
+
+  it("libellés et détails par type", () => {
+    expect(libelleMouvement("topup")).toBe("Recharge");
+    expect(libelleMouvement("manual")).toBe("Ajustement");
+    expect(detailMouvement(l({ unites: 2 }))).toBe("2 unités");
+    expect(detailMouvement(l({ type: "call", unites: 535, note: "Rattrapage" }))).toBe("8:55 · Rattrapage");
+    expect(detailMouvement(l({ type: "manual", note: "Geste commercial" }))).toBe("Geste commercial");
+  });
+
+  it("douze mois glissants, mois en cours d'abord, à cheval sur l'année", () => {
+    const m = derniersMois(new Date(2026, 0, 15));
+    expect(m[0]).toBe("2026-01");
+    expect(m[1]).toBe("2025-12");
+    expect(m).toHaveLength(12);
+  });
+
+  it("totaux du mois", () => {
+    expect(totauxMois([l({ montantFcfa: 10000 }), l({}), l({ type: "call", montantFcfa: -1605 })]))
+      .toEqual({ debits: 1629, credits: 10000 });
+  });
+
+  it("CSV pour Excel : BOM, « ; », guillemets échappés", () => {
+    const csv = mouvementsCsv([l({ type: "manual", montantFcfa: -2397, note: 'Rattrapage ; "02/11"' })]);
+    expect(csv.startsWith("﻿Date;Type;")).toBe(true);
+    expect(csv).toContain('Ajustement;"Rattrapage ; ""02/11""";-2397;0');
   });
 });
