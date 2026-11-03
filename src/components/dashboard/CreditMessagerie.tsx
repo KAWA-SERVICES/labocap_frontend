@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { toast } from "sonner";
-import { Loader2, MessageSquareText, Wallet } from "lucide-react";
+import { Download, History, Loader2, MessageSquareText, Wallet } from "lucide-react";
 
 import { CrudModal } from "@/components/common/CrudModal";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { NativeSelect } from "@/components/ui/NativeSelect";
+import { SidePanel } from "@/components/ui/SidePanel";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { TextInput } from "@/components/ui/TextInput";
 import { dashboardApi, type CreditMessagerie as Credit, type NouvelleRecharge } from "@/lib/api/dashboard";
@@ -25,8 +26,14 @@ import {
   libelleOffre,
   moisProposes,
   montantForfait,
+  derniersMois,
+  detailMouvement,
+  libelleMois,
+  libelleMouvement,
+  mouvementsCsv,
+  totauxMois,
 } from "@/lib/creditMessagerie";
-import { cn, formatCFA, formatDate } from "@/lib/utils";
+import { cn, formatCFA, formatDate, formatDateTime } from "@/lib/utils";
 
 const CLE = ["dashboard", "credit-messagerie"] as const;
 
@@ -40,6 +47,7 @@ const CLE = ["dashboard", "credit-messagerie"] as const;
 export function CreditMessagerie() {
   const queryClient = useQueryClient();
   const [ouverte, setOuverte] = useState(false);
+  const [historique, setHistorique] = useState(false);
   const [suivie, setSuivie] = useState<number | null>(null);
 
   const { data, isLoading, isError } = useQuery({
@@ -78,14 +86,24 @@ export function CreditMessagerie() {
       <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3">
         <h2 className="text-sm font-semibold text-gray-800">Crédit SMS et appels</h2>
         {data && data.plan !== "none" && (
-          <Button
-            size="sm"
-            icon={<Wallet className="h-3.5 w-3.5" />}
-            onClick={() => setOuverte(true)}
-            disabled={enAttente}
-          >
-            Recharger
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<History className="h-3.5 w-3.5" />}
+              onClick={() => setHistorique(true)}
+            >
+              Voir l&apos;historique
+            </Button>
+            <Button
+              size="sm"
+              icon={<Wallet className="h-3.5 w-3.5" />}
+              onClick={() => setOuverte(true)}
+              disabled={enAttente}
+            >
+              Recharger
+            </Button>
+          </div>
         )}
       </div>
 
@@ -111,6 +129,7 @@ export function CreditMessagerie() {
           }}
         />
       )}
+      <HistoriqueCredit open={historique} onClose={() => setHistorique(false)} />
     </div>
   );
 }
@@ -290,5 +309,103 @@ function ModaleRecharge({
         </FormField>
       </div>
     </CrudModal>
+  );
+}
+
+/**
+ * Registre du crédit, mois par mois : chaque recharge, SMS, appel ou
+ * ajustement, avec le solde après lui — de quoi comprendre la facturation.
+ */
+function HistoriqueCredit({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const mois = derniersMois(new Date());
+  const [choisi, setChoisi] = useState(mois[0]);
+  const { data: lignes, isLoading, isError } = useQuery({
+    queryKey: ["dashboard", "credit-messagerie", "mouvements", choisi],
+    queryFn: () => dashboardApi.getMouvementsCredit(choisi).then((r) => r.data),
+    enabled: open,
+  });
+  const totaux = totauxMois(lignes ?? []);
+
+  const exporter = () => {
+    const url = URL.createObjectURL(new Blob([mouvementsCsv(lignes ?? [])], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `credit-sms-appels-${choisi}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <SidePanel
+      open={open}
+      onClose={onClose}
+      title="Historique du crédit"
+      subtitle="SMS, appels, recharges et ajustements"
+      footer={
+        <Button
+          variant="secondary"
+          icon={<Download className="h-3.5 w-3.5" />}
+          onClick={exporter}
+          disabled={!lignes || lignes.length === 0}
+        >
+          Exporter en CSV
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        <FormField label="Mois">
+          <NativeSelect value={choisi} onChange={(e) => setChoisi(e.target.value)} aria-label="Mois">
+            {mois.map((m) => (
+              <option key={m} value={m}>
+                {libelleMois(m)}
+              </option>
+            ))}
+          </NativeSelect>
+        </FormField>
+
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : isError ? (
+          <p role="alert" className="text-sm text-red-600">
+            Historique indisponible pour le moment.
+          </p>
+        ) : !lignes || lignes.length === 0 ? (
+          <p className="text-sm text-gray-500">Aucun mouvement ce mois-ci.</p>
+        ) : (
+          <>
+            <dl className="grid grid-cols-2 gap-3 rounded-[var(--radius-control)] bg-gray-50 p-3 text-sm">
+              <div>
+                <dt className="text-gray-500">Consommé et retiré</dt>
+                <dd className="font-semibold text-gray-900">{formatCFA(totaux.debits)} F</dd>
+              </div>
+              <div>
+                <dt className="text-gray-500">Rechargé et crédité</dt>
+                <dd className="font-semibold text-gray-900">{formatCFA(totaux.credits)} F</dd>
+              </div>
+            </dl>
+            <ul className="divide-y divide-gray-100">
+              {lignes.map((l) => (
+                <li key={l.id} className="flex items-start justify-between gap-3 py-2.5 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-800">{libelleMouvement(l.type)}</p>
+                    <p className="text-xs text-gray-500">
+                      {formatDateTime(l.le)}
+                      {detailMouvement(l) && <> · {detailMouvement(l)}</>}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className={cn("font-semibold tabular-nums", l.montantFcfa < 0 ? "text-red-600" : "text-emerald-700")}>
+                      {l.montantFcfa > 0 ? "+" : l.montantFcfa < 0 ? "−" : ""}
+                      {formatCFA(Math.abs(l.montantFcfa))} F
+                    </p>
+                    <p className="text-xs tabular-nums text-gray-500">Solde {formatCFA(l.soldeApres)} F</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+    </SidePanel>
   );
 }

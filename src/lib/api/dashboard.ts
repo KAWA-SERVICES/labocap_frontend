@@ -1,6 +1,6 @@
 import apiClient from "./client";
 import type { IssueRappel } from "@/lib/rappel";
-import type { PlanCredit } from "@/lib/creditMessagerie";
+import type { MouvementCredit, PlanCredit } from "@/lib/creditMessagerie";
 
 /**
  * `/dashboard/stats` — profil administrateur (`DashboardDto.AdminStats`).
@@ -221,4 +221,7 @@ export const dashboardApi = {
     apiClient.post<RechargeCredit>("/dashboard/credit-messagerie/recharges", body),
   getRecharge: (id: number) =>
     apiClient.get<RechargeCredit>(`/dashboard/credit-messagerie/recharges/${id}`),
+  /** Registre du crédit d'un mois `AAAA-MM`, du plus récent au plus ancien. */
+  getMouvementsCredit: (mois: string) =>
+    apiClient.get<MouvementCredit[]>("/dashboard/credit-messagerie/mouvements", { params: { mois } }),
 };
