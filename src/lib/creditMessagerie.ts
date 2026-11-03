@@ -65,7 +65,7 @@ export interface MouvementCredit {
   /** topup, plan, sms, call, refund, manual */
   type: string;
   montantFcfa: number;
-  /** Parts d'un SMS, secondes d'un appel, mois d'un forfait. */
+  /** Unités d'un SMS (160 caractères chacune), secondes d'un appel, mois d'un forfait. */
   unites: number;
   note: string;
   soldeApres: number;
@@ -85,9 +85,9 @@ export function libelleMouvement(type: string): string {
   return TYPES[type] ?? type;
 }
 
-/** « 2 parts », « 0:45 », « 3 mois », ou la note d'un ajustement. */
+/** « 2 unités », « 0:45 », « 3 mois », ou la note d'un ajustement. */
 export function detailMouvement(m: MouvementCredit): string {
-  if (m.type === "sms") return `${m.unites} part${m.unites > 1 ? "s" : ""}${m.note ? ` · ${m.note}` : ""}`;
+  if (m.type === "sms") return `${m.unites} unité${m.unites > 1 ? "s" : ""}${m.note ? ` · ${m.note}` : ""}`;
   if (m.type === "call") return `${formatDuree(m.unites)}${m.note ? ` · ${m.note}` : ""}`;
   if (m.type === "plan") return `${m.unites} mois`;
   return m.note;

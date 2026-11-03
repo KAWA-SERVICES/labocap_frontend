@@ -167,7 +167,7 @@ function Contenu({ credit, enAttente }: { credit: Credit; enAttente: boolean }) 
         <p className="text-[.8125rem] font-medium text-gray-500">Ce mois-ci</p>
         <p className="mt-2 text-[.9rem] text-gray-700">
           <MessageSquareText className="mr-1 inline h-4 w-4 text-gray-400" aria-hidden />
-          SMS : {mois.sms.toLocaleString("fr-FR")} envois · {mois.smsParts.toLocaleString("fr-FR")} parts
+          SMS : {mois.sms.toLocaleString("fr-FR")} envois · {mois.smsParts.toLocaleString("fr-FR")} unités
           {!illimite && <> · {formatCFA(mois.smsFcfa)} F</>}
         </p>
         <p className="mt-1 text-[.9rem] text-gray-700">
@@ -183,7 +183,7 @@ function Contenu({ credit, enAttente }: { credit: Credit; enAttente: boolean }) 
           </p>
         ) : (
           <>
-            <p className="mt-2 text-[.9rem] text-gray-700">{formatCFA(prix.smsPartFcfa)} F par SMS (160 caractères)</p>
+            <p className="mt-2 text-[.9rem] text-gray-700">{formatCFA(prix.smsPartFcfa)} F par unité SMS (160 caractères)</p>
             <p className="mt-1 text-[.9rem] text-gray-700">{formatCFA(prix.appelSecondeFcfa)} F par seconde d&apos;appel</p>
           </>
         )}

@@ -73,7 +73,7 @@ describe("historique du crédit", () => {
   it("libellés et détails par type", () => {
     expect(libelleMouvement("topup")).toBe("Recharge");
     expect(libelleMouvement("manual")).toBe("Ajustement");
-    expect(detailMouvement(l({ unites: 2 }))).toBe("2 parts");
+    expect(detailMouvement(l({ unites: 2 }))).toBe("2 unités");
     expect(detailMouvement(l({ type: "call", unites: 535, note: "Rattrapage" }))).toBe("8:55 · Rattrapage");
     expect(detailMouvement(l({ type: "manual", note: "Geste commercial" }))).toBe("Geste commercial");
   });
