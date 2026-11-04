@@ -28,6 +28,7 @@ import {
   montantForfait,
   derniersMois,
   detailMouvement,
+  libelleAutonomie,
   libelleMois,
   libelleMouvement,
   mouvementsCsv,
@@ -142,7 +143,7 @@ function Contenu({ credit, enAttente }: { credit: Credit; enAttente: boolean }) 
       <div className="bg-white p-5">
         <div className="flex items-center justify-between gap-2">
           <p className="text-[.8125rem] font-medium text-gray-500">{libelleOffre(credit.plan)}</p>
-          {credit.bas && <Badge variant="warning">Solde bas</Badge>}
+          {credit.bas && <Badge variant="warning">{credit.epuise ? "Épuisé" : "Solde bas"}</Badge>}
         </div>
         <p
           className={cn(
@@ -156,6 +157,11 @@ function Contenu({ credit, enAttente }: { credit: Credit; enAttente: boolean }) 
               : "Forfait non payé"
             : `${formatCFA(credit.soldeFcfa ?? 0)} F`}
         </p>
+        {!illimite && credit.autonomieJours != null && (
+          <p className={cn("mt-2 text-xs", credit.bas ? "text-red-600" : "text-gray-500")}>
+            {libelleAutonomie(credit.autonomieJours)}
+          </p>
+        )}
         {enAttente && (
           <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-blue-600" role="status">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />

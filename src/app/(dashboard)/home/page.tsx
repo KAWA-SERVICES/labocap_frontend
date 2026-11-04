@@ -531,14 +531,10 @@ function SimpleCalendar() {
 export default function HomePage() {
   const { can } = usePermissions();
 
-  // L'API refuse (403) toutes les routes `/dashboard/**` sans `view-dashboard` :
-  // on n'en appelle aucune, et on le dit — même forme que la page Finance.
+  // L'API refuse (403) les routes `/dashboard/**` sans `view-dashboard`, sauf
+  // le crédit SMS et appels, ouvert à tous : c'est tout ce qu'on montre alors.
   if (!can(PERMISSIONS.VIEW_DASHBOARD)) {
-    return (
-      <div className="flex min-h-[200px] items-center justify-center">
-        <p className="text-sm text-gray-500">Accès non autorisé.</p>
-      </div>
-    );
+    return <CreditMessagerie />;
   }
 
   return <TableauDeBord />;
@@ -902,8 +898,8 @@ function TableauDeBord() {
       {/* Rappels automatiques : pour tout profil qui voit le tableau de bord. */}
       <RappelsPatients />
 
-      {/* Crédit SMS et appels (prépayé FluidChat) : solde et recharge, réservés à qui le gère. */}
-      {can(PERMISSIONS.MANAGE_MESSAGING_CREDIT) && <CreditMessagerie />}
+      {/* Crédit SMS et appels (prépayé FluidChat) : solde et recharge, ouverts à tous. */}
+      <CreditMessagerie />
 
       {/* ==================================================================
           LIGNE PLEINE LARGEUR — le travail du jour

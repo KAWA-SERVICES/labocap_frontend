@@ -178,7 +178,12 @@ export interface CreditMessagerie {
   soldeFcfa: number | null;
   /** Date ISO de fin du forfait illimité, `null` sinon. */
   illimiteJusquAu: string | null;
+  /** Moins de trois jours d'autonomie (calcul LabSys, pas le seuil de FluidChat). */
   bas: boolean;
+  /** Plus de quoi envoyer un SMS. */
+  epuise: boolean;
+  /** Jours de consommation que couvre le solde ; `null` sans consommation récente. */
+  autonomieJours: number | null;
   seuilBasFcfa: number;
   prix: { smsPartFcfa: number; appelSecondeFcfa: number; forfaitMoisFcfa: number };
   /** Consommation du mois civil en cours. */
