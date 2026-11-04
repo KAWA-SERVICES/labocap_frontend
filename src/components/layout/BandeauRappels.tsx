@@ -3,12 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { PhoneMissed, Settings, X } from "lucide-react";
+import { AlertTriangle, PhoneMissed, Settings, X } from "lucide-react";
 
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@/lib/constants/permissions";
 import { dashboardApi } from "@/lib/api/dashboard";
 import { A_RAPPELER, libelleReglagesManquants } from "@/lib/rappel";
+import { libelleAutonomie } from "@/lib/creditMessagerie";
+import { formatCFA } from "@/lib/utils";
 
 /** Fermé pour la session de l'onglet ; stockage indisponible : simplement rouvert. */
 function useFermePourLaSession(cle: string): [boolean, () => void] {
@@ -90,6 +92,58 @@ export function BandeauRappels() {
         </Bandeau>
       )}
     </>
+  );
+}
+
+/**
+ * Crédit SMS et appels bas (moins de trois jours d'autonomie) ou épuisé : pour
+ * tout utilisateur, sur toutes les pages, sans bouton pour le masquer — tant
+ * qu'il n'est pas rechargé, les SMS et appels aux patients s'arrêtent.
+ * Silencieux si le crédit suffit, si FluidChat n'est pas configuré ou en erreur.
+ */
+export function BandeauCredit() {
+  const { data } = useQuery({
+    // Même clé que la tuile du tableau de bord : un seul appel quand les deux sont à l'écran.
+    queryKey: ["dashboard", "credit-messagerie"],
+    queryFn: () => dashboardApi.getCreditMessagerie().then((r) => r.data),
+    staleTime: 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  if (!data?.bas) return null;
+
+  const lien = (
+    <Link href="/home" className="font-semibold underline underline-offset-2">
+      Recharger
+    </Link>
+  );
+  if (data.epuise) {
+    return (
+      <div
+        role="alert"
+        className="mb-4 flex items-center gap-3 rounded-[var(--radius-control)] bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-inset ring-red-200 print:hidden"
+      >
+        <AlertTriangle className="h-5 w-5 flex-shrink-0 text-red-600" aria-hidden="true" />
+        <p className="flex-1">
+          <strong className="font-semibold">Crédit SMS et appels épuisé</strong> : aucun SMS ni appel
+          ne part. {lien}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div
+      role="status"
+      className="mb-4 flex items-center gap-3 rounded-[var(--radius-control)] bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-inset ring-amber-200 print:hidden"
+    >
+      <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-600" aria-hidden="true" />
+      <p className="flex-1">
+        <strong className="font-semibold">Crédit SMS et appels bas</strong> :{" "}
+        {formatCFA(data.soldeFcfa ?? 0)} F
+        {data.autonomieJours != null && <>, {libelleAutonomie(data.autonomieJours)}</>}. {lien}
+      </p>
+    </div>
   );
 }
 

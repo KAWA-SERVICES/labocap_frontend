@@ -3,6 +3,7 @@ import {
   erreurMontant,
   erreurTelephone,
   formatDuree,
+  libelleAutonomie,
   libelleOffre,
   moisProposes,
   montantForfait,
@@ -94,5 +95,13 @@ describe("historique du crédit", () => {
     const csv = mouvementsCsv([l({ type: "manual", montantFcfa: -2397, note: 'Rattrapage ; "02/11"' })]);
     expect(csv.startsWith("﻿Date;Type;")).toBe(true);
     expect(csv).toContain('Ajustement;"Rattrapage ; ""02/11""";-2397;0');
+  });
+});
+
+describe("libelleAutonomie", () => {
+  it("dit le nombre de jours, au singulier comme au pluriel", () => {
+    expect(libelleAutonomie(0)).toBe("moins d'un jour d'autonomie");
+    expect(libelleAutonomie(1)).toBe("environ 1 jour d'autonomie");
+    expect(libelleAutonomie(2)).toBe("environ 2 jours d'autonomie");
   });
 });
