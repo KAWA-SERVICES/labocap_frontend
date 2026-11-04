@@ -26,6 +26,12 @@ export function libelleOffre(plan: PlanCredit): string {
   return "Non activé";
 }
 
+/** « environ 2 jours d'autonomie » ; moins d'un jour : « moins d'un jour d'autonomie ». */
+export function libelleAutonomie(jours: number): string {
+  if (jours < 1) return "moins d'un jour d'autonomie";
+  return `environ ${jours.toLocaleString("fr-FR")} jour${jours > 1 ? "s" : ""} d'autonomie`;
+}
+
 /** `null` si le montant est accepté, sinon le message à afficher. */
 export function erreurMontant(montant: number): string | null {
   if (!Number.isInteger(montant) || montant < MONTANT_MIN || montant > MONTANT_MAX) {
