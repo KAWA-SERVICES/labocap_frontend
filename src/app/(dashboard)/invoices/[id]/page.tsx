@@ -232,12 +232,15 @@ export default function InvoiceDetailPage({
     enabled: !!id,
   });
 
+  // Chargée dès l'arrivée sur la page (pas seulement à l'ouverture de la
+  // modale) : sa longueur décide si le bouton « Voir l'historique » doit
+  // apparaître, y compris quand la facture n'a plus d'info en attente.
   const { data: clientInfoHistory, isLoading: isHistoryLoading } = useQuery<
     InvoiceClientInfoHistory[]
   >({
     queryKey: ["invoice", id, "client-info-history"],
     queryFn: () => invoicesApi.getClientInfoHistory(id).then((r) => r.data),
-    enabled: !!id && showHistoryModal,
+    enabled: !!id,
   });
 
   const { data: appSettings } = useAppSettings();
@@ -514,6 +517,10 @@ export default function InvoiceDetailPage({
   );
   const clientInfoOutdated = nameChanged || addressChanged;
 
+  /** Le bouton « Voir l'historique » n'a rien à montrer tant qu'aucune
+   * actualisation n'a jamais eu lieu sur cette facture. */
+  const hasClientInfoHistory = Boolean(clientInfoHistory && clientInfoHistory.length > 0);
+
   /** Phrase d'alerte, accordée : "Le nom a été modifié" / "L'adresse a été
    * modifiée" / "Le nom et l'adresse ont été modifiés". */
   const champsModifies = [
@@ -672,15 +679,33 @@ export default function InvoiceDetailPage({
                 Actualiser
               </Button>
             )}
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowHistoryModal(true)}
-            >
-              Voir l&apos;historique
-            </Button>
+            {hasClientInfoHistory && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowHistoryModal(true)}
+              >
+                Voir l&apos;historique
+              </Button>
+            )}
           </div>
+        </div>
+      )}
+
+      {/* Plus rien en attente sur cette facture, mais des actualisations ont
+          déjà eu lieu par le passé : on garde un accès à l'historique, sans
+          le bandeau d'alerte qui n'a plus lieu d'être. */}
+      {!clientInfoOutdated && hasClientInfoHistory && (
+        <div className="mt-4 flex justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowHistoryModal(true)}
+          >
+            Voir l&apos;historique
+          </Button>
         </div>
       )}
 
