@@ -98,6 +98,17 @@ function Card({
   );
 }
 
+/** Champs de texte enregistrés par la sauvegarde automatique. */
+const texteDe = (v: ReportEditFormValues) => ({
+  content: v.content ?? "",
+  contentMicro: v.contentMicro ?? "",
+  descriptionSupplementaire: v.descriptionSupplementaire ?? "",
+  descriptionSupplementaireMicro: v.descriptionSupplementaireMicro ?? "",
+  comment: v.comment ?? "",
+  commentSup: v.commentSup ?? "",
+  receiverName: v.receiverName ?? "",
+});
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -212,6 +223,7 @@ export default function ReportDetailPage({
     reset,
     control,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<ReportEditFormValues>({
     // Le schéma suit l'état du compte rendu chargé : react-hook-form relit le
@@ -235,6 +247,9 @@ export default function ReportDetailPage({
     },
   });
 
+  // Dernier texte connu du serveur, base de la sauvegarde automatique (plus bas).
+  const dernierTexte = useRef<string | null>(null);
+
   // Préremplir le formulaire quand le rapport est chargé
   useEffect(() => {
     if (report) {
@@ -254,7 +269,10 @@ export default function ReportDetailPage({
         tagIds: report.tagIds ?? [],
         reason: "",
       });
+      // Point de départ de la sauvegarde automatique : le texte chargé.
+      dernierTexte.current = JSON.stringify(texteDe(getValues()));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report, reset]);
 
   // Dérive les états locaux (select d'état + bloc complémentaire) à partir du
@@ -292,6 +310,7 @@ export default function ReportDetailPage({
   //   "1" (Terminé)             → status VALIDATED
   //   "0" (En attente relecture) → status DRAFT
   const updateMutation = useMutation({
+    mutationKey: ["report-update", id],
     mutationFn: (data: ReportEditFormValues) =>
       reportsApi.update(id, {
         titleId: data.titleId || undefined,
@@ -328,6 +347,41 @@ export default function ReportDetailPage({
       toast.error(err.response?.data?.message ?? "Erreur lors de la sauvegarde");
     },
   });
+
+  // --- Sauvegarde automatique (comme le brouillon d'un courriel)
+  // Toutes les 15 s, si le texte a changé depuis le dernier enregistrement.
+  // Seulement sur un compte rendu en attente et jamais signé : au-delà, chaque
+  // enregistrement crée une version et une trace, il passe par « Mettre à jour ».
+  // Ne touche ni à l'état, ni aux signataires, ni au formulaire en cours.
+  const [autoSave, setAutoSave] = useState<
+    { etat: "idle" } | { etat: "saving" } | { etat: "saved"; a: Date } | { etat: "error" }
+  >({ etat: "idle" });
+  const autoSaveActif =
+    can(PERMISSIONS.EDIT_REPORTS) && report?.status === "DRAFT" && !report?.signatureDate;
+  useEffect(() => {
+    if (!autoSaveActif) return;
+    let enCours = false;
+    const timer = window.setInterval(async () => {
+      if (enCours || queryClient.isMutating({ mutationKey: ["report-update", id] })) return;
+      const texte = texteDe(getValues());
+      const json = JSON.stringify(texte);
+      if (json === dernierTexte.current) return;
+      enCours = true;
+      setAutoSave({ etat: "saving" });
+      try {
+        await reportsApi.saveDraft(id, texte);
+        dernierTexte.current = json;
+        setAutoSave({ etat: "saved", a: new Date() });
+      } catch {
+        setAutoSave({ etat: "error" });
+      } finally {
+        enCours = false;
+      }
+    }, 15_000);
+    return () => window.clearInterval(timer);
+    // getValues et queryClient sont stables.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSaveActif, id]);
 
   // Applique le contenu d'un template dans le champ ciblé (« modèle d'expression »)
   const applyTemplate = async (
@@ -845,6 +899,18 @@ export default function ReportDetailPage({
                 >
                   {updateMutation.isPending ? "Mise à jour..." : "Mettre à jour"}
                 </Button>
+              )}
+              {canEdit && autoSave.etat !== "idle" && (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className={`mt-2 text-center text-xs ${autoSave.etat === "error" ? "text-red-600" : "text-gray-500"}`}
+                >
+                  {autoSave.etat === "saving" && "Enregistrement…"}
+                  {autoSave.etat === "saved" &&
+                    `Enregistré automatiquement à ${autoSave.a.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                  {autoSave.etat === "error" && "Échec de l'enregistrement automatique, nouvel essai dans 15 s"}
+                </p>
               )}
             </PermissionGate>
           </Card>
