@@ -312,6 +312,10 @@ export const reportsApi = {
   update: (id: string, data: Partial<ReportRequest>) =>
     apiClient.put<Report>(`/reports/${id}`, data),
 
+  /** Sauvegarde automatique du texte (compte rendu en attente, jamais signé). */
+  saveDraft: (id: string, data: Partial<ReportRequest>) =>
+    apiClient.patch<void>(`/reports/${id}/brouillon`, data),
+
   delete: (id: string) => apiClient.delete(`/reports/${id}`),
 
   validate: (id: string) => apiClient.post(`/reports/${id}/validate`),
