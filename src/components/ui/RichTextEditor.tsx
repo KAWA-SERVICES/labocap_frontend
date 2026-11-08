@@ -29,6 +29,7 @@ import {
   Redo2,
   RemoveFormatting,
   Eraser,
+  Loader2,
 } from "lucide-react";
 
 /**
@@ -170,6 +171,10 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const [isEmpty, setIsEmpty] = useState(!value);
+  // Dictée : cadre rouge pendant l'enregistrement, repère « transcription… » au curseur.
+  const [dicteeActive, setDicteeActive] = useState(false);
+  const [repere, setRepere] = useState<{ top: number; left: number } | null>(null);
+  const surlignage = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Recalcule `isEmpty` quand la valeur externe change, pendant le rendu plutôt
   // que dans un effet (évite un rendu en cascade). Pattern React « ajuster l'état
@@ -291,8 +296,18 @@ export function RichTextEditor({
   const insertDictation = (texte: string) => {
     const el = editorRef.current;
     if (disabled || !el) return;
+    // L'utilisateur tape ailleurs (autre champ) : on ajoute en fin de ce champ
+    // sans lui voler le curseur, sinon sa frappe atterrirait ici.
+    const actif = document.activeElement;
+    if (actif && actif !== document.body && !el.contains(actif) && !actif.closest("[data-guide='dictee']")) {
+      el.append(document.createTextNode(texte + " "));
+      handleInput();
+      return;
+    }
     el.focus();
     const sel = window.getSelection();
+    // Une sélection en cours (mot à mettre en gras…) ne doit pas être remplacée.
+    if (sel && !sel.isCollapsed) sel.collapseToEnd();
     if (sel && (sel.rangeCount === 0 || !el.contains(sel.anchorNode))) {
       const range = document.createRange();
       range.selectNodeContents(el);
@@ -302,6 +317,46 @@ export function RichTextEditor({
     }
     document.execCommand("insertText", false, texte + " ");
     handleInput();
+    surlignerDernierePhrase(texte.length + 1);
+  };
+
+  // Surligne 2 s le texte qui vient d'arriver, pour qu'on le relise. L'API Highlight
+  // ne touche pas au DOM : rien ne peut partir avec la sauvegarde automatique.
+  const surlignerDernierePhrase = (longueur: number) => {
+    const sel = window.getSelection();
+    const noeud = sel?.anchorNode;
+    if (!sel || !noeud || noeud.nodeType !== Node.TEXT_NODE) return;
+    if (typeof Highlight === "undefined" || !CSS.highlights) return;
+    const fin = sel.anchorOffset;
+    if (fin < longueur) return;
+    const plage = document.createRange();
+    plage.setStart(noeud, fin - longueur);
+    plage.setEnd(noeud, fin);
+    CSS.highlights.set("dictee", new Highlight(plage));
+    if (surlignage.current) clearTimeout(surlignage.current);
+    surlignage.current = setTimeout(() => CSS.highlights.delete("dictee"), 2000);
+  };
+
+  // Place le repère « transcription… » au curseur (ou en fin de texte), par-dessus
+  // l'éditeur et jamais dedans : il ne doit pas être enregistré avec le compte rendu.
+  const placerRepere = (enAttente: number) => {
+    const el = editorRef.current;
+    const boite = el?.parentElement;
+    if (!enAttente || !el || !boite) {
+      setRepere(null);
+      return;
+    }
+    const sel = window.getSelection();
+    let rect: DOMRect | undefined;
+    if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
+      rect = sel.getRangeAt(0).getClientRects()[0];
+    }
+    const cadre = boite.getBoundingClientRect();
+    setRepere(
+      rect
+        ? { top: rect.top - cadre.top, left: rect.right - cadre.left + 4 }
+        : { top: el.scrollHeight - 28, left: 12 }
+    );
   };
 
   // Valeur affichée dans le select police (vide si la police courante n'est pas listée).
@@ -314,7 +369,9 @@ export function RichTextEditor({
       className={`rounded-[var(--radius-surface)] border shadow-[var(--elevation-flat)] ${
         disabled
           ? "border-gray-200 bg-gray-50"
-          : "border-gray-300 bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500"
+          : dicteeActive
+            ? "border-red-600 bg-white ring-1 ring-red-600"
+            : "border-gray-300 bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500"
       }`}
     >
       {/* Barre d'outils */}
@@ -322,7 +379,13 @@ export function RichTextEditor({
         <div className="flex flex-wrap items-center gap-0.5 border-b border-gray-200 px-2 py-1.5">
           {dictation && (
             <>
-              <DictationButton onText={insertDictation} />
+              <span data-guide="dictee">
+                <DictationButton
+                  onText={insertDictation}
+                  onEnregistrement={setDicteeActive}
+                  onEnAttente={placerRepere}
+                />
+              </span>
               <Sep />
             </>
           )}
@@ -511,7 +574,17 @@ export function RichTextEditor({
 
       {/* Zone d'édition */}
       <div className="relative">
-        {isEmpty && placeholder && (
+        {repere && (
+          <span
+            aria-live="polite"
+            className="pointer-events-none absolute z-10 inline-flex items-center gap-1.5 rounded-[var(--radius-control)] bg-gray-100 px-2 py-0.5 text-xs italic text-gray-600"
+            style={{ top: repere.top, left: repere.left }}
+          >
+            <Loader2 aria-hidden className="h-3 w-3 animate-spin" />
+            transcription…
+          </span>
+        )}
+        {isEmpty && placeholder && !repere && (
           <span className="pointer-events-none absolute left-3 top-3 text-sm text-gray-400">
             {placeholder}
           </span>

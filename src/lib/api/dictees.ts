@@ -5,8 +5,10 @@ export const dicteesApi = {
   transcrire: (audio: Blob) => {
     const form = new FormData();
     form.append("audio", audio, "segment");
-    return apiClient.post<{ texte: string }>("/dictees", form, {
+    return apiClient.post<{ texte: string; minutesRestantes: number }>("/dictees", form, {
       headers: { "Content-Type": "multipart/form-data" },
+      // Une requête bloquée bloquerait la file des phrases jusqu'au rechargement.
+      timeout: 30_000,
     });
   },
 };

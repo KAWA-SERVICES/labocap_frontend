@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { NativeSelect } from "@/components/ui/NativeSelect";
 import { RichTextEditor } from "@/components/ui/RichTextEditor";
+import { GuideProjecteur } from "@/components/ui/GuideProjecteur";
 import { AuthThumbnail } from "@/components/ui/AuthThumbnail";
 import { QRCodeSVG } from "qrcode.react";
 import { PermissionGate } from "@/components/common/PermissionGate";
@@ -1029,6 +1030,38 @@ export default function ReportDetailPage({
           </Button>
         </div>
       </div>
+
+      {/*
+        Didacticiel de la dictée : une seule fois par utilisateur, accroché au
+        bouton « Dicter » du premier champ. Son dernier bouton lance une vraie
+        dictée (et la demande d'accès au micro du navigateur).
+      */}
+      <GuideProjecteur
+        cle="dictee-vocale"
+        cible='[data-guide="dictee"]'
+        actif={canEdit}
+        titre="Dictez votre compte rendu"
+        texte="Cliquez sur « Dicter » pour parler au lieu de taper. La première fois, le navigateur demande l'accès au micro : choisissez « Autoriser »."
+        etapesSuivantes={[
+          {
+            titre: "Parlez naturellement",
+            texte:
+              "Marquez une courte pause entre les phrases : chacune s'écrit pendant que vous continuez. Il n'y a pas de limite de durée.",
+          },
+          {
+            titre: "Arrêtez quand vous voulez",
+            texte:
+              "Appuyez sur Échap ou recliquez sur le bouton rouge. La dernière phrase s'affiche surlignée : relisez-la, Ctrl+Z l'annule.",
+          },
+        ]}
+        actionLabel="Essayer maintenant"
+        onAction={() =>
+          // Pas de clic si une dictée tourne déjà : il l'arrêterait.
+          document
+            .querySelector<HTMLButtonElement>('[data-guide="dictee"] button:not([aria-pressed])')
+            ?.click()
+        }
+      />
 
       {/* Versions antérieures : réservées au droit de consulter l'historique. */}
       {can(PERMISSIONS.VIEW_REPORT_HISTORY) && (
