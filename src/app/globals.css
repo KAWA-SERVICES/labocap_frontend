@@ -1139,3 +1139,8 @@ textarea::placeholder {
   letter-spacing: -0.006em;
   color: var(--color-gray-800);
 }
+
+/* Dernière phrase dictée, surlignée 2 s (RichTextEditor) */
+::highlight(dictee) {
+  background-color: var(--color-blue-100);
+}
