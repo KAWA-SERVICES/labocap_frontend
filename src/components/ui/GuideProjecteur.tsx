@@ -32,6 +32,8 @@ interface Props {
   onAction: () => void;
   /** Le guide attend que l'écran soit prêt (données chargées, cible présente). */
   actif: boolean;
+  /** Bulles suivantes, sur la même cible : « Suivant » les fait défiler avant le bouton d'action. */
+  etapesSuivantes?: { titre: string; texte: string }[];
 }
 
 /**
@@ -64,7 +66,12 @@ export function GuideProjecteur({
   actionLabel,
   onAction,
   actif,
+  etapesSuivantes = [],
 }: Props) {
+  const etapes = [{ titre, texte }, ...etapesSuivantes];
+  const [rang, setRang] = useState(0);
+  const etape = etapes[rang];
+  const derniere = rang === etapes.length - 1;
   const { user } = useCurrentUser();
   const { vue, marquerVue } = useAstuceVue(cle, user?.id);
   const [zone, setZone] = useState<Rect | null>(null);
@@ -97,7 +104,17 @@ export function GuideProjecteur({
 
     // Première mesure au tour suivant : la cible peut n'être peinte qu'après ce
     // rendu, et un rectangle nul placerait le projecteur en haut à gauche.
-    const minuteur = window.setTimeout(mesurer, 60);
+    // Une cible hors de l'écran (bouton plus bas dans un long formulaire) y est
+    // d'abord amenée : sinon la bulle s'afficherait hors de vue.
+    const amenerPuisMesurer = () => {
+      const el = document.querySelector(cible);
+      const r = el?.getBoundingClientRect();
+      if (el && r && (r.top < 0 || r.bottom > window.innerHeight)) {
+        el.scrollIntoView?.({ block: "center" });
+      }
+      mesurer();
+    };
+    const minuteur = window.setTimeout(amenerPuisMesurer, 60);
     window.addEventListener("resize", mesurer);
     window.addEventListener("scroll", mesurer, true);
     return () => {
@@ -178,8 +195,8 @@ export function GuideProjecteur({
         <div className="flex items-start gap-3">
           <MousePointerClick className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-900">{titre}</p>
-            <p className="mt-1 text-sm leading-relaxed text-gray-600">{texte}</p>
+            <p className="text-sm font-semibold text-gray-900">{etape.titre}</p>
+            <p className="mt-1 text-sm leading-relaxed text-gray-600">{etape.texte}</p>
           </div>
           <button
             type="button"
@@ -192,6 +209,11 @@ export function GuideProjecteur({
         </div>
 
         <div className="mt-4 flex items-center justify-end gap-2">
+          {etapes.length > 1 && (
+            <span className="mr-auto text-xs text-gray-500">
+              {rang + 1} / {etapes.length}
+            </span>
+          )}
           <button
             type="button"
             onClick={fermer}
@@ -202,6 +224,7 @@ export function GuideProjecteur({
           <button
             type="button"
             onClick={() => {
+              if (!derniere) return setRang(rang + 1);
               // Marquer AVANT d'agir : la démonstration ouvre un panneau
               // par-dessus, et le guide ne doit pas reparaître derrière lui.
               marquerVue();
@@ -209,7 +232,7 @@ export function GuideProjecteur({
             }}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
           >
-            {actionLabel}
+            {derniere ? actionLabel : "Suivant"}
           </button>
         </div>
       </div>
