@@ -16,6 +16,9 @@ interface ConfirmModalProps {
   cancelLabel?: string;
   confirmVariant?: "danger" | "primary";
   isLoading?: boolean;
+  /** Une seconde réponse possible, entre « Annuler » et la confirmation. */
+  secondaryLabel?: string;
+  onSecondary?: () => unknown;
 }
 
 export function ConfirmModal({
@@ -28,6 +31,8 @@ export function ConfirmModal({
   cancelLabel = "Annuler",
   confirmVariant = "danger",
   isLoading = false,
+  secondaryLabel,
+  onSecondary,
 }: ConfirmModalProps) {
   // Bloquer le scroll
   useEffect(() => {
@@ -111,6 +116,16 @@ export function ConfirmModal({
           >
             {cancelLabel}
           </button>
+          {secondaryLabel && onSecondary && (
+            <button
+              type="button"
+              onClick={onSecondary}
+              disabled={isLoading}
+              className="rounded-[var(--radius-control)] border border-blue-600 bg-white px-[.9rem] py-2 text-[.9rem] font-medium text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40 disabled:opacity-50"
+            >
+              {secondaryLabel}
+            </button>
+          )}
           {/* Bouton partagé : spinner pendant `isLoading` et, si `onConfirm` est
               asynchrone, verrou automatique contre un second clic. */}
           <Button

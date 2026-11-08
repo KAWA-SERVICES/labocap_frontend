@@ -252,9 +252,11 @@ export default function AssignmentDetailsPage() {
       assignmentsApi.addDetail(id as string, data),
     onSuccess: (_donnees, variables) => {
       toast.success(
-        variables.confirmerReaffectation
-          ? "Demande d'examen réaffectée"
-          : "Demande d'examen ajoutée",
+        variables.pourAvis
+          ? "Demande d'examen envoyée pour avis"
+          : variables.confirmerReaffectation
+            ? "Demande d'examen réaffectée"
+            : "Demande d'examen ajoutée",
       );
       setReaffectation(null);
       queryClient.invalidateQueries({ queryKey: ["assignment", id] });
@@ -637,6 +639,9 @@ export default function AssignmentDetailsPage() {
                               {d.remplaceeLe && (
                                 <Badge variant="secondary">Transférée</Badge>
                               )}
+                              {d.pourAvis && !d.remplaceeLe && (
+                                <Badge variant="info">Pour avis</Badge>
+                              )}
                             </div>
                           </td>
                           {/*
@@ -755,13 +760,23 @@ export default function AssignmentDetailsPage() {
             confirmerReaffectation: true,
           })
         }
-        title="Réaffecter cette demande d'examen"
+        onSecondary={() =>
+          reaffectation &&
+          addDetailMutation.mutate({
+            ...reaffectation.donnees,
+            pourAvis: true,
+          })
+        }
+        title="Ce dossier a déjà un médecin"
         message={
           reaffectation
-            ? `${reaffectation.message} L'ancienne prise en charge sera conservée dans l'historique.`
+            ? `${reaffectation.message} « Réaffecter » le lui retire ; « Pour avis » le lui laisse et le confie aussi au médecin de ce lot, qui pourra rédiger le compte rendu. L'ancienne prise en charge reste dans l'historique.`
             : ""
         }
         confirmLabel="Réaffecter"
+        confirmVariant="primary"
+        secondaryLabel="Pour avis"
+        isLoading={addDetailMutation.isPending}
       />
 
       <ConfirmModal
