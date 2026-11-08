@@ -27,7 +27,15 @@ export function PriseEnCharge({ demandeId }: { demandeId: string }) {
   });
 
   const etapes = data?.etapes ?? [];
-  const courante = etapes.find((e: EtapeAffectation) => e.remplaceeLe === null);
+  // Le titulaire, et à côté de lui les médecins consultés pour avis : une
+  // ligne d'avis est courante elle aussi, sans être celle qui a le dossier.
+  const courante = etapes.find(
+    (e: EtapeAffectation) => e.remplaceeLe === null && !e.pourAvis,
+  );
+  const pourAvis = etapes.filter(
+    (e: EtapeAffectation) => e.remplaceeLe === null && e.pourAvis,
+  );
+  const titulaires = etapes.filter((e: EtapeAffectation) => !e.pourAvis);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -54,13 +62,25 @@ export function PriseEnCharge({ demandeId }: { demandeId: string }) {
               </dt>
               <dd className="text-gray-800">{etapes[0].medecin ?? "—"}</dd>
             </div>
-            {etapes.length > 1 && (
+            {titulaires.length > 1 && (
               <div className="flex items-start gap-2">
                 <dt className="w-40 flex-shrink-0 font-medium text-gray-500">
-                  Actuellement chez :
+                  Affectée à :
                 </dt>
                 <dd className="font-semibold text-gray-800">
                   {courante?.medecin ?? "Personne"}
+                </dd>
+              </div>
+            )}
+            {pourAvis.length > 0 && (
+              <div className="flex items-start gap-2">
+                <dt className="w-40 flex-shrink-0 font-medium text-blue-800">
+                  Pour avis :
+                </dt>
+                <dd className="font-semibold text-blue-900">
+                  {pourAvis
+                    .map((e: EtapeAffectation) => e.medecin ?? "Médecin inconnu")
+                    .join(", ")}
                 </dd>
               </div>
             )}
@@ -87,7 +107,11 @@ function Etape({ etape }: { etape: EtapeAffectation }) {
           se lit comme une puce et la frise perd sa continuité. */}
       <span
         className={`absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${
-          courante ? "bg-green-600" : "bg-gray-300"
+          !courante
+            ? "bg-gray-300"
+            : etape.pourAvis
+              ? "bg-blue-600"
+              : "bg-green-600"
         }`}
       />
       <div className="flex flex-wrap items-center gap-2">
@@ -96,10 +120,12 @@ function Etape({ etape }: { etape: EtapeAffectation }) {
         >
           {etape.medecin ?? "Médecin inconnu"}
         </span>
-        {courante ? (
-          <Badge variant="success">En charge</Badge>
-        ) : (
+        {!courante ? (
           <Badge variant="secondary">Transférée</Badge>
+        ) : etape.pourAvis ? (
+          <Badge variant="info">Pour avis</Badge>
+        ) : (
+          <Badge variant="success">En charge</Badge>
         )}
         {etape.codeAffectation && (
           <span className="font-mono text-xs text-gray-500">
@@ -108,7 +134,9 @@ function Etape({ etape }: { etape: EtapeAffectation }) {
         )}
       </div>
       <p className="mt-0.5 text-xs text-gray-500">
-        {etape.confieeLe ? `Confiée le ${formatDate(etape.confieeLe)}` : ""}
+        {etape.confieeLe
+          ? `${etape.pourAvis ? "Avis demandé" : "Confiée"} le ${formatDate(etape.confieeLe)}`
+          : ""}
         {etape.confieePar ? ` par ${etape.confieePar}` : ""}
         {etape.remplaceeLe
           ? ` — retirée le ${formatDate(etape.remplaceeLe)}`

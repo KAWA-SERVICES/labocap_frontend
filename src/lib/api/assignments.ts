@@ -62,6 +62,8 @@ export interface AssignmentDetail {
    * — mais elle ne dit plus rien du travail à faire ici.
    */
   remplaceeLe?: string | null;
+  /** Vraie quand la demande est dans ce lot pour avis : son titulaire la garde. */
+  pourAvis?: boolean;
 }
 
 /**
@@ -110,6 +112,8 @@ export interface EtapeAffectation {
   confieeLe: string | null;
   remplaceeLe: string | null;
   statutDuMedecin: string | null;
+  /** Vraie quand le dossier a été confié à ce médecin pour avis. */
+  pourAvis: boolean;
 }
 
 /** À qui une demande a été confiée, de la première fois à aujourd'hui. */
@@ -139,6 +143,11 @@ export interface AssignmentDetailRequest {
    * redemander ici qui détient le dossier.
    */
   confirmerReaffectation?: boolean;
+  /**
+   * L'autre réponse à la même question : confier la demande au médecin du lot
+   * pour avis, sans la retirer à celui qui l'a. Vaut accord.
+   */
+  pourAvis?: boolean;
 }
 
 export interface AssignmentPrint {
