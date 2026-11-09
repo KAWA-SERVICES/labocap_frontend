@@ -54,3 +54,6 @@ password.txt
 !.claude/agents/
 !.claude/skills/
 __pycache__/
+
+# APK publiés sur le serveur (cf. docker-compose.yml)
+/apps-publiees/

@@ -31,3 +31,8 @@ services:
       APP_MODULES: ${APP_MODULES:-}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
+    # Application mobile à télécharger (labocap.apk + labocap.json), publiée
+    # par simple copie dans ce dossier du serveur, hors du dépôt (116 Mo) et
+    # hors du build : servie telle quelle sous /apps/ par Next.js.
+    volumes:
+      - ${APPS_DIR:-./apps-publiees}:/app/public/apps:ro
