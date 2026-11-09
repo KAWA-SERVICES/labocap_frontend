@@ -47,6 +47,7 @@ import { ConfirmModal } from "@/components/common/ConfirmModal";
 import { IconButton } from "@/components/ui/IconButton";
 import { RappelsPatients } from "@/components/dashboard/RappelsPatients";
 import { CreditMessagerie } from "@/components/dashboard/CreditMessagerie";
+import { AppliMobile } from "@/components/dashboard/AppliMobile";
 
 import { usePermissions } from "@/hooks/usePermissions";
 import { cn, formatCFA, formatDate } from "@/lib/utils";
@@ -532,9 +533,14 @@ export default function HomePage() {
   const { can } = usePermissions();
 
   // L'API refuse (403) les routes `/dashboard/**` sans `view-dashboard`, sauf
-  // le crédit SMS et appels, ouvert à tous : c'est tout ce qu'on montre alors.
+  // le crédit SMS et appels, ouvert à tous : on le montre alors, avec le lien de l'appli mobile.
   if (!can(PERMISSIONS.VIEW_DASHBOARD)) {
-    return <CreditMessagerie />;
+    return (
+      <div className="space-y-6">
+        <CreditMessagerie />
+        <AppliMobile />
+      </div>
+    );
   }
 
   return <TableauDeBord />;
@@ -900,6 +906,9 @@ function TableauDeBord() {
 
       {/* Crédit SMS et appels (prépayé FluidChat) : solde et recharge, ouverts à tous. */}
       <CreditMessagerie />
+
+      {/* Application mobile : version publiée et lien public de l'APK. */}
+      <AppliMobile />
 
       {/* ==================================================================
           LIGNE PLEINE LARGEUR — le travail du jour
