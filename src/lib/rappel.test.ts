@@ -25,6 +25,12 @@ describe("detailRappel", () => {
     expect(detailRappel({ rappelTentatives: 1 })).toBe("1 tentative");
     expect(detailRappel({})).toBe("");
   });
+
+  it("ajoute le nombre de SMS envoyés, rien quand il est nul", () => {
+    expect(detailRappel({ rappelTentatives: 3, smsEnvoyes: 1 })).toBe("3 tentatives · 1 SMS envoyé");
+    expect(detailRappel({ smsEnvoyes: 2 })).toBe("2 SMS envoyés");
+    expect(detailRappel({ rappelTentatives: 1, smsEnvoyes: 0 })).toBe("1 tentative");
+  });
 });
 
 describe("libelleReglagesManquants", () => {

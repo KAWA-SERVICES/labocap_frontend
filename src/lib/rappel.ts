@@ -41,11 +41,12 @@ export function badgeRappel(issue: IssueRappel | null | undefined): {
   );
 }
 
-/** « 2 tentatives · 40 % écouté · 27/10/2026 14:05 » — parties absentes omises. */
+/** « 2 tentatives · 40 % écouté · 27/10/2026 14:05 · 1 SMS envoyé » — parties absentes omises. */
 export function detailRappel(row: {
   rappelTentatives?: number | null;
   rappelPctEcoute?: number | null;
   rappelDate?: string | null;
+  smsEnvoyes?: number | null;
 }): string {
   const parts: string[] = [];
   if (row.rappelTentatives != null)
@@ -58,6 +59,8 @@ export function detailRappel(row: {
         d.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }),
       );
   }
+  if (row.smsEnvoyes)
+    parts.push(`${row.smsEnvoyes} SMS envoyé${row.smsEnvoyes > 1 ? "s" : ""}`);
   return parts.join(" · ");
 }
 
