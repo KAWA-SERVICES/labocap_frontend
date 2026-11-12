@@ -181,6 +181,8 @@ export interface ReportSuiviRow {
   rappelPctEcoute: number | null;
   /** Date du dernier appel. */
   rappelDate: string | null;
+  /** SMS « résultat disponible » partis (automatiques et manuels). */
+  smsEnvoyes: number;
 }
 
 /** `GET /reports/{id}/appel` ; issue et suite nulles pour un appel d'avant FluidChat. */
